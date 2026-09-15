@@ -116,26 +116,127 @@ require_passing_checks() {
     die "not every pull request check passed"
 }
 
+is_sensitive_path() {
+  local normalized_path
+  normalized_path="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "/$normalized_path" in
+    */../* | */.git/* | */.env | */.env.* | */.npmrc | */.pypirc | */.netrc | \
+      */.docker/config.json | */.kube/config | */.aws/credentials | \
+      */.config/gh/hosts.yml | */id_rsa | */id_dsa | */id_ecdsa | \
+      */id_ed25519 | *.pem | *.key | *.p12 | *.pfx | *.jks | *.keystore | \
+      */credentials.json | */credentials-*.json | */service-account.json | \
+      */service-account-*.json)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+SECRET_PATTERN="BEGIN [A-Z ]*PRIVATE KEY|github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9_]+|AKIA[0-9A-Z]{16}|npm_[A-Za-z0-9]{20,}|(api[_-]?key|access[_-]?token|client[_-]?secret|password)[[:space:]]*[:=][[:space:]]*[\"']?[A-Za-z0-9_./+=-]{16,}"
+
+scan_changed_paths() {
+  local path
+  while IFS= read -r -d '' path; do
+    is_sensitive_path "$path" && die "refusing sensitive changed path: $path"
+  done < <({
+    git diff --name-only -z --no-renames --no-ext-diff --no-textconv -- .
+    git ls-files -z --others --exclude-standard
+  })
+  return 0
+}
+
+scan_secret_additions() {
+  local path scan_status
+  scan_status=0
+  git diff --no-renames --no-ext-diff --no-textconv -U0 -- . | \
+    grep '^+' | grep -Ei "$SECRET_PATTERN" >/dev/null || scan_status="$?"
+  [[ "$scan_status" -eq 1 ]] || {
+    [[ "$scan_status" -eq 0 ]] && die "changed additions resemble a secret"
+    die "failed to scan changed additions"
+  }
+
+  while IFS= read -r -d '' path; do
+    scan_status=0
+    grep -Ei "$SECRET_PATTERN" "$path" >/dev/null || scan_status="$?"
+    [[ "$scan_status" -eq 1 ]] || {
+      [[ "$scan_status" -eq 0 ]] && die "untracked content resembles a secret: $path"
+      die "failed to scan untracked file: $path"
+    }
+  done < <(git ls-files -z --others --exclude-standard)
+  return 0
+}
+
+emit_redacted_diff() {
+  awk '
+    {
+      lowered = tolower($0)
+      if (lowered ~ /begin [a-z ]*private key/ || lowered ~ /github_pat_[a-z0-9_]+/ || lowered ~ /gh[pousr]_[a-z0-9_]+/ || $0 ~ /AKIA[0-9A-Z]{16}/ || lowered ~ /npm_[a-z0-9]{20,}/ || lowered ~ /(api[_-]?key|access[_-]?token|client[_-]?secret|password)[[:space:]]*[:=][[:space:]]*["\047]?[a-z0-9_./+=-]{16,}/) {
+        print "[REDACTED SECRET-LIKE DIFF LINE]"
+      } else {
+        print
+      }
+    }
+  '
+}
+
+scan_index_secrets() {
+  local path scan_status
+  while IFS= read -r -d '' path; do
+    git cat-file -e ":$path" 2>/dev/null || continue
+    scan_status=0
+    git cat-file blob ":$path" | grep -a -Ei "$SECRET_PATTERN" >/dev/null ||
+      scan_status="$?"
+    [[ "$scan_status" -eq 1 ]] || {
+      [[ "$scan_status" -eq 0 ]] && return 0
+      return 2
+    }
+  done < <(git diff --cached --name-only -z --diff-filter=ACMR)
+  return 1
+}
+
+clear_index() {
+  git restore --staged -- "$@" >/dev/null 2>&1 || git read-tree HEAD
+  [[ -z "$(git diff --cached --name-only)" ]] ||
+    die "failed to clear rejected staged changes"
+}
+
 inspect_repository() {
-  local path diff_status
+  local path diff_status artifact scan_status
   [[ "$#" -eq 0 ]] || die "usage: inspect"
-  printf '%s\n' "## Branch and status"
-  git -c core.fsmonitor=false --no-pager status --short --branch --untracked-files=all
-  printf '%s\n' "## Changed paths"
-  git -c core.fsmonitor=false --no-pager diff --name-status --no-renames \
-    --no-ext-diff --no-textconv -- .
-  while IFS= read -r -d '' path; do
-    printf '??\t%s\n' "$path"
-  done < <(git ls-files -z --others --exclude-standard)
-  printf '%s\n' "## Diff"
-  git -c core.fsmonitor=false --no-pager diff --no-renames --no-ext-diff \
-    --no-textconv -- .
-  while IFS= read -r -d '' path; do
-    diff_status=0
-    git -c core.fsmonitor=false --no-pager diff --no-ext-diff --no-textconv \
-      --no-index -- /dev/null "$path" || diff_status="$?"
-    [[ "$diff_status" -eq 1 ]] || die "failed to inspect untracked file: $path"
-  done < <(git ls-files -z --others --exclude-standard)
+  scan_changed_paths
+  artifact="$(mktemp "${TMPDIR:-/tmp}/opencode-inspect.XXXXXX")"
+  INSPECTION_ARTIFACT="$artifact"
+  trap 'rm -f "${INSPECTION_ARTIFACT:-}"' EXIT
+  {
+    printf '%s\n' "## Branch and status"
+    git -c core.fsmonitor=false --no-pager status --short --branch --untracked-files=all
+    printf '%s\n' "## Changed paths"
+    git -c core.fsmonitor=false --no-pager diff --name-status --no-renames \
+      --no-ext-diff --no-textconv -- .
+    while IFS= read -r -d '' path; do
+      printf '??\t%s\n' "$path"
+    done < <(git ls-files -z --others --exclude-standard)
+    printf '%s\n' "## Diff"
+    git -c core.fsmonitor=false --no-pager diff --no-renames --no-ext-diff \
+      --no-textconv -- . | emit_redacted_diff
+    while IFS= read -r -d '' path; do
+      diff_status=0
+      git -c core.fsmonitor=false --no-pager diff --no-ext-diff --no-textconv \
+        --no-index -- /dev/null "$path" | emit_redacted_diff || diff_status="$?"
+      [[ "$diff_status" -eq 0 || "$diff_status" -eq 1 ]] ||
+        die "failed to inspect untracked file: $path"
+    done < <(git ls-files -z --others --exclude-standard)
+  } >"$artifact"
+  scan_status=0
+  grep -a -Ei "$SECRET_PATTERN" "$artifact" >/dev/null || scan_status="$?"
+  [[ "$scan_status" -eq 1 ]] || {
+    [[ "$scan_status" -eq 0 ]] && die "inspection snapshot still resembles a secret"
+    die "failed to scan inspection snapshot"
+  }
+  command cat "$artifact"
+  rm -f "$artifact"
+  INSPECTION_ARTIFACT=""
+  trap - EXIT
 }
 
 prepare() {
@@ -185,21 +286,13 @@ commit_changes() {
   [[ "$message" =~ ^(feat|fix|docs|refactor|test|build|ci|chore|perf)(\([a-z0-9._/-]+\))?\!?:\ .+ ]] ||
     die "commit message is not Conventional Commit format"
 
-  local path normalized_path requested_paths changed_paths
+  local path requested_paths changed_paths
   local -a pathspecs=()
   for path in "$@"; do
     [[ -n "$path" && "$path" != "." && "$path" != -* && "$path" != /* && "$path" != *$'\n'* ]] ||
       die "invalid staged path"
     [[ ! -d "$path" ]] || die "staged paths must name files, not directories: $path"
-    normalized_path="$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')"
-    case "/$normalized_path" in
-      */../* | */.git/* | */.env | */.env.* | */.npmrc | */.pypirc | */.netrc | \
-        */id_rsa | */id_dsa | */id_ecdsa | */id_ed25519 | *.pem | *.key | *.p12 | \
-        *.pfx | *.jks | *.keystore | */credentials.json | */credentials-*.json | \
-        */service-account.json | */service-account-*.json)
-        die "refusing sensitive or escaping path: $path"
-        ;;
-    esac
+    is_sensitive_path "$path" && die "refusing sensitive or escaping path: $path"
     pathspecs+=(":(literal)$path")
   done
 
@@ -211,23 +304,31 @@ commit_changes() {
   [[ -n "$changed_paths" ]] || die "working tree has no changes"
   [[ "$changed_paths" == "$requested_paths" ]] ||
     die "explicit file list does not match every working-tree change"
+  scan_changed_paths
+  scan_secret_additions
 
   git add -- "${pathspecs[@]}"
-  [[ -n "$(git diff --cached --name-only)" ]] || die "nothing was staged"
+  if [[ -z "$(git diff --cached --name-only)" ]]; then
+    clear_index "${pathspecs[@]}"
+    die "nothing was staged"
+  fi
   local staged_paths
   staged_paths="$(git diff --cached --name-only | sort -u)"
-  [[ "$staged_paths" == "$requested_paths" ]] ||
+  if [[ "$staged_paths" != "$requested_paths" ]]; then
+    clear_index "${pathspecs[@]}"
     die "staged files differ from the explicit file list"
-  if grep -Eq '(^|/)\.env($|\.)|\.(pem|key)$' <<<"$staged_paths"; then
-    die "staged files contain a sensitive path"
   fi
-  local secret_pattern
-  secret_pattern="BEGIN [A-Z ]*PRIVATE KEY|github_pat_[A-Za-z0-9_]+|gh[pousr]_[A-Za-z0-9_]+|AKIA[0-9A-Z]{16}|npm_[A-Za-z0-9]{20,}|(api[_-]?key|access[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*[\"']?[A-Za-z0-9_./+=-]{16,}"
-  if git diff --cached --no-ext-diff --no-textconv -U0 | \
-    grep '^+' | grep -Ei "$secret_pattern" >/dev/null; then
-    die "staged additions resemble a secret"
+  local index_scan_status=0
+  scan_index_secrets || index_scan_status="$?"
+  if [[ "$index_scan_status" -ne 1 ]]; then
+    clear_index "${pathspecs[@]}"
+    [[ "$index_scan_status" -eq 0 ]] && die "staged blob content resembles a secret"
+    die "failed to scan staged blob content"
   fi
-  git diff --cached --check
+  if ! git diff --cached --check; then
+    clear_index "${pathspecs[@]}"
+    die "staged diff failed whitespace validation"
+  fi
   git commit -m "$message"
   require_clean_tree
 }
@@ -259,7 +360,7 @@ wait_checks() {
   REPOSITORY="$(repository_from_origin)"
   require_feature_branch
 
-  local pr_json check_count attempt
+  local pr_json check_count attempt known_checks current_checks stable_rounds watch_rounds
   check_count=0
   for attempt in 1 2 3 4 5 6 7; do
     pr_json="$(read_pr "$1")"
@@ -268,8 +369,26 @@ wait_checks() {
     [[ "$attempt" -eq 7 ]] || sleep 10
   done
   [[ "$check_count" -gt 0 ]] || die "no checks appeared during the 60-second registration window"
-  gh pr checks "$1" --repo "$REPOSITORY" --watch --interval 10
-  require_passing_checks "$1"
+  known_checks="$(jq -r '.statusCheckRollup[].name' <<<"$pr_json" | sort -u)"
+  stable_rounds=0
+  watch_rounds=0
+  while [[ "$stable_rounds" -lt 4 && "$watch_rounds" -lt 18 ]]; do
+    watch_rounds=$((watch_rounds + 1))
+    gh pr checks "$1" --repo "$REPOSITORY" --watch --interval 10
+    pr_json="$(read_pr "$1")"
+    require_pr_binding "$1" "$pr_json"
+    current_checks="$(jq -r '.statusCheckRollup[].name' <<<"$pr_json" | sort -u)"
+    [[ -n "$current_checks" ]] || die "pull request check set became empty"
+    if [[ "$current_checks" != "$known_checks" ]]; then
+      known_checks="$current_checks"
+      stable_rounds=0
+    else
+      require_passing_checks "$1"
+      stable_rounds=$((stable_rounds + 1))
+    fi
+    [[ "$stable_rounds" -ge 4 ]] || sleep 10
+  done
+  [[ "$stable_rounds" -ge 4 ]] || die "pull request check set did not stabilize"
 }
 
 merge_pr() {
@@ -278,6 +397,7 @@ merge_pr() {
   [[ "$2" =~ ^[0-9a-f]{40}$ ]] || die "invalid expected head SHA"
   REPOSITORY="$(repository_from_origin)"
   require_feature_branch
+  wait_checks "$1"
 
   local pr_json state mergeable review_decision head_sha
   pr_json="$(read_pr "$1")"

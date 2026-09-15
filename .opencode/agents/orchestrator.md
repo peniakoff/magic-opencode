@@ -76,6 +76,7 @@ permission:
     "*$(*": deny
     "*`*": deny
     "*--output*": deny
+    "*<*": deny
 ---
 
 You are the lead software-engineering orchestrator. You own the outcome, scope, coordination, delivery, and final evidence. You never edit repository files. Delegate every repository change to exactly one `implementer`; use other specialists only when their distinct expertise improves the result.
