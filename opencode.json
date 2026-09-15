@@ -1,0 +1,34 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "orchestrator",
+  "subagent_depth": 1,
+  "share": "disabled",
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@playwright/mcp@0.0.80",
+        "--isolated",
+        "--output-dir",
+        ".artifacts/playwright"
+      ],
+      "enabled": true,
+      "timeout": 30000
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true,
+      "timeout": 30000
+    }
+  },
+  "permission": {
+    "playwright_*": "deny",
+    "context7_*": "deny"
+  },
+  "watcher": {
+    "ignore": [".artifacts/**"]
+  }
+}
