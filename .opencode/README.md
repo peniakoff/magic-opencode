@@ -78,7 +78,7 @@ server definition:
   "mcp": {
     "context7": {
       "headers": {
-        "Authorization": "Bearer {env:CONTEXT7_API_KEY}"
+        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
       }
     }
   }
@@ -120,6 +120,18 @@ behavior, accessibility signals, console errors, and network failures. It is
 not a replacement for repeatable tests. Agents must never create ad hoc Python,
 Node.js, shell, or HTML scripts as a substitute for repository-native unit,
 integration, or E2E coverage.
+
+Required registry dependency changes use the trusted
+`.opencode/scripts/dependency-update.sh` wrapper. It must be the first mutation
+on a clean feature branch, accepts only validated package identifiers for npm,
+Yarn, pnpm, or Bun, distinguishes runtime and development dependencies through
+fixed actions, and always disables dependency lifecycle scripts. The resulting
+wrapper also supports one validated mixed `batch` transaction and refuses
+manager output outside manifests and lockfiles. The resulting manifest and lockfile return through
+`inspect` and preliminary review before repository code runs. Project-specific
+generators and migrations must be exposed as reviewed repository scripts with
+an explicit local permission override, or run by the user; the portable pack
+does not auto-approve arbitrary generators.
 
 ## GitHub delivery
 
@@ -171,8 +183,7 @@ changed-path, and diff evidence without accepting Git flags or paths.
 ## Reusing in another repository
 
 1. Copy `opencode.json`, `.opencode/agents/`, `.opencode/commands/`,
-   `.opencode/scripts/`, this
-   README, and the `.artifacts/` ignore rule.
+   `.opencode/scripts/`, this README, and the `.artifacts/` ignore rule.
 2. Do not copy `.opencode/package.json`, lockfiles, `node_modules/`, or other
    local OpenCode state.
 3. Create a fresh project-specific `AGENTS.md` or run `/init`. Never copy
