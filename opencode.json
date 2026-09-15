@@ -33,8 +33,6 @@
     "context7_*": "deny"
   },
   "watcher": {
-    "ignore": [
-      ".artifacts/**"
-    ]
+    "ignore": [".artifacts/**"]
   }
 }
