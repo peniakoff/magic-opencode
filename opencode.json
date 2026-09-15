@@ -25,11 +25,11 @@
       "timeout": 30000,
       "headers": {
         "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
-      },
-      "gh_grep": {
-        "type": "remote",
-        "url": "https://mcp.grep.app"
       }
+    },
+    "gh_grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app"
     }
   },
   "permission": {
