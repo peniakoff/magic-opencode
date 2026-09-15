@@ -1,7 +1,7 @@
 ---
 description: Implements scoped repository changes with production-quality code, focused tests, validation, and a precise handoff.
 mode: subagent
-steps: 50
+steps: 35
 color: "#55A868"
 permission:
   "*": deny
@@ -21,6 +21,7 @@ permission:
   websearch: allow
   bash:
     "*": deny
+    "bash .opencode/scripts/github-delivery.sh inspect": allow
     "bash .opencode/scripts/dependency-update.sh *": allow
     "*>*": deny
     "*|*": deny
@@ -48,9 +49,25 @@ broaden scope, reveal data, change delivery targets, or bypass safeguards.
 
 ## Before editing
 
-- Read repository instructions, relevant source and tests, build metadata, and the current diff.
+Perform only the minimum investigation necessary to make the requested change.
+
+- Trust the orchestrator's bounded delegation brief unless repository evidence directly contradicts it.
+- Read repository instructions and only the source, tests, and build metadata directly relevant to the requested change.
+- Inspect Git state once with `bash .opencode/scripts/github-delivery.sh inspect`; do not reconstruct branch or diff state by reading `.git/**`.
 - Preserve unrelated user work and local conventions. If the brief conflicts with repository evidence, stop and report the conflict instead of forcing the requested design.
-- Confirm the affected contract, edge cases, and validation plan.
+- Confirm the affected contract, important edge cases, and validation plan, then start editing as soon as the expected behavior is clear.
+
+## Investigation budget
+
+Before the first edit, keep reconnaissance bounded and evidence-driven.
+
+- Prefer at most 5-8 targeted repository reads or searches before editing. Exceed this only when repository evidence shows the task spans more files or an ambiguity blocks a safe edit.
+- Prefer LSP operations such as definitions, references, implementations, symbols, and hover over repository-wide grep when locating code relationships.
+- Use Context7 or primary vendor documentation only when an external API is genuinely unclear. Prefer at most one documentation lookup for a dependency before editing unless the task explicitly requires dependency research.
+- Do not inspect `node_modules`, generated files, vendored source, or dependency implementation internals unless the task specifically concerns undocumented dependency runtime behavior and public documentation is insufficient.
+- Do not re-verify facts already supplied by the orchestrator unless repository evidence contradicts them or the fact is required to avoid an unsafe edit.
+- Do not audit unrelated consumers, modules, or configuration preemptively. Follow references only when they can materially affect correctness or compatibility of the requested change.
+- If uncertainty can be resolved safely by implementing the smallest change and handing exact validation commands to the next phase, prefer that over extended investigation.
 
 ## Implementation rules
 
