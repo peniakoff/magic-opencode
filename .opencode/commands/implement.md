@@ -112,11 +112,13 @@ Never weaken lane checks to make parallelism fit. Once a lane is integrated, do 
 
 ## 5. Preliminary review and validation
 
-Before executing changed repository code, inspect the combined diff and preliminarily review executable inputs such as package scripts/hooks, build configuration, CI, generators, migrations, and tests. Route any correction through a bounded implementer repair slice and inspect again.
+Before executing changed repository code, inspect the combined diff and preliminarily review executable inputs such as package scripts/hooks, build configuration, CI, generators, migrations, and tests. Route semantic/code corrections through a bounded implementer repair slice and inspect again.
 
 Mark the validation todo item `in_progress` before running repository-native checks in increasing cost order: focused tests, formatting/static analysis, type checking, broader tests, then build/package/synthesis checks required by repository policy/CI. The implementer does not run these commands. Mark validation completed only after the required commands have reported their results or a transparent blocker has been established.
 
-Use `test-debugger` only when a failure's cause is ambiguous. Once a causal code defect is identified, update the todo plan with a bounded repair slice and return the repair to `implementer`. Use `security-reviewer` for sensitive trust boundaries and `browser-qa` as supplementary exploratory evidence for changed user-facing web flows.
+If the formatting check fails only because task-owned changed files need deterministic formatting, do not create an implementer repair slice. Extract the exact failing task-owned paths from the formatter output and run `bash .opencode/scripts/format-changed.sh <path>...`, then rerun the repository formatting check. Never ask an LLM to imitate Prettier by manually changing whitespace, wrapping, commas, or import layout. If the trusted wrapper reports that no supported path-scoped formatter is available, or the failure is not formatting-only, continue with normal diagnosis without broadening scope.
+
+Use `test-debugger` only when a failure's cause is ambiguous. Once a causal code defect is identified, return the repair to a bounded implementer slice. Use `security-reviewer` for sensitive trust boundaries and `browser-qa` as supplementary exploratory evidence for changed user-facing web flows.
 
 Never create ad hoc scripts as substitutes for the repository's normal test framework.
 
@@ -132,7 +134,7 @@ Route actionable findings through bounded repair slices, rerun affected checks p
 2. Run wrapper `push`, then `create-pr <issue-url> <title> <body>`. The body must summarize implementation, exact local validation, risks/migrations, and contain `Closes #<issue-number>`.
 3. Before each mutation, revalidate origin, issue, current feature branch, PR head/base/number, and reviewed head SHA.
 4. Mark CI `in_progress` once the PR exists, then run `wait-checks <pr-number>`. No checks, unstable/pending checks, review requirements, conflicts, or skipped/cancelled/failed checks block merge. Mark CI completed only when required checks have passed.
-5. For CI failures, diagnose evidence first. Allow at most two evidence-backed repair rounds; each round updates the todo plan and returns through bounded implementation, local validation, review, push, and CI wait. After two unsuccessful rounds leave the PR open and report the first causal failure.
+5. For CI failures, diagnose evidence first. Allow at most two evidence-backed repair rounds; each round updates the todo plan and returns through deterministic formatting when applicable or bounded implementation for actual code defects, local validation, review, push, and CI wait. After two unsuccessful rounds leave the PR open and report the first causal failure.
 6. When mergeable, reviewed, and all checks pass, mark merge `in_progress`, record `headRefOid`, and run `github-delivery.sh merge <pr-number> <head-sha>` for squash merge. Do not silently fall back to another merge method. Mark merge completed only after GitHub confirms it.
 
 ## 8. Cleanup and report
