@@ -1,0 +1,16 @@
+{
+  "embeddingProvider": "auto",
+  "scope": "project",
+  "indexing": {
+    "autoIndex": false,
+    "watchFiles": true,
+    "requireProjectMarker": true,
+    "semanticOnly": false
+  },
+  "search": {
+    "maxResults": 20,
+    "minScore": 0.1,
+    "fusionStrategy": "rrf",
+    "rerankTopN": 20
+  }
+}

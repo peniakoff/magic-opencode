@@ -4,6 +4,7 @@
   "subagent_depth": 1,
   "share": "disabled",
   "lsp": true,
+  "plugin": ["open-codebase-index"],
   "mcp": {
     "playwright": {
       "type": "local",
@@ -33,6 +34,6 @@
     "context7_*": "deny"
   },
   "watcher": {
-    "ignore": [".artifacts/**"]
+    "ignore": [".artifacts/**", ".opencode/index/**", ".opencode/worktrees/**"]
   }
 }
