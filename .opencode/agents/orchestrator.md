@@ -1,7 +1,7 @@
 ---
 description: Owns repository work end to end by separating research, bounded writing slices, validation, review, and delivery.
 mode: primary
-steps: 60
+steps: 85
 color: "#4F8EF7"
 permission:
   "*": deny
