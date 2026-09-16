@@ -8,39 +8,118 @@ All versioned prompts, commands, helper messages, and documentation under
 
 ## Operating model
 
-- `orchestrator` owns scope, delegation, validation, review, and explicitly
-  requested GitHub delivery. It cannot edit files.
-- `implementer` is the only agent type allowed to edit repository files.
-- One implementer is the default. At most two implementer instances may run in
-  parallel when their write scopes are proven independent and each works in a
-  separate detached worktree managed by the trusted parallel-worktree wrapper.
-- `research-explorer`, `architect`, `test-debugger`, `reviewer`,
-  `browser-qa`, and `security-reviewer` are read-only specialists.
-- Independent read-only investigations may run in parallel freely. Parallel
-  implementation is deliberately narrower: disjoint scopes, no shared mutable
-  contract, no dependency on the other lane's uncommitted output, and a final
-  combined review and validation gate.
-- Specialists are called only when their distinct expertise affects the result;
-  step limits bound unproductive loops and cost.
+The workflow deliberately separates thinking roles from the writer:
+
+- `orchestrator` owns scope, evidence, decomposition, validation, review, and
+  explicitly requested GitHub delivery. It cannot edit files.
+- `research-explorer` resolves repository/API/compatibility facts before a
+  writer is dispatched.
+- `architect` resolves material design decisions when a change crosses
+  contracts, persistence, migrations, security, infrastructure, or major
+  compatibility boundaries.
+- `implementer` is the only agent type allowed to edit repository files. It is
+  intentionally a bounded writer, not a researcher.
+- `test-debugger`, `reviewer`, `browser-qa`, and `security-reviewer` are
+  read-only specialists.
+
+The default flow is:
+
+```text
+inspect / research
+        ↓
+decide architecture and compatibility
+        ↓
+plan bounded implementation slices
+        ↓
+implement slice 1 → inspect
+implement slice 2 → inspect
+...
+        ↓
+preliminary review → validation → final review
+```
+
+One implementer is the default. At most two implementer instances may run in
+parallel, and only when two write-ready slices are proven independent and use
+separate trusted worktrees.
 
 Commands:
 
-- `/work <task>` — complete a local implementation and validation workflow
-  without GitHub delivery.
-- `/implement <GitHub issue URL>` — branch, implement, validate, review, push,
-  open a PR, wait for Actions, squash-merge, and clean up.
-- `/research`, `/design`, `/debug`, `/review`, `/qa`, and `/security`
-  — focused report-only specialist workflows.
+- `/work <task>` — local implementation/validation/review without GitHub
+  delivery.
+- `/implement <GitHub issue URL>` — branch, research, bounded implementation,
+  validate, review, open a PR, wait for Actions, squash-merge, and clean up.
+- `/research`, `/design`, `/debug`, `/review`, `/qa`, and `/security` — focused
+  report-only specialist workflows.
+
+## Why implementation is sliced
+
+The writer has a bounded step budget. A large brief that asks one implementer
+to discover the repository, verify external APIs, edit many unrelated files,
+write tests, update documentation, and prepare release metadata can consume the
+entire budget before the first edit.
+
+This workflow prevents that failure mode structurally rather than merely asking
+the model to be faster.
+
+### Research belongs before the writer
+
+Use `research-explorer` for:
+
+- version-sensitive library/API behavior;
+- dependency compatibility;
+- unknown behavior location and call paths;
+- broad consumer/blast-radius analysis;
+- repository conventions that require exploration;
+- facts that would otherwise make a writer inspect `node_modules`, Context7,
+  vendor sources, or the web.
+
+The researcher returns an implementation-ready evidence packet. The
+orchestrator copies only decision-relevant verified facts into the writer brief.
+The implementer must not re-verify them unless checked-in repository evidence
+contradicts the brief.
+
+### Bounded writer slices
+
+A normal writer slice has one cohesive objective and preferably about 1-6
+files. More than 8 non-mechanical files should normally be decomposed. Keep
+focused tests with the behavior they prove when practical; move docs/version/
+changelog work into a small mechanical follow-up slice when that keeps the core
+writer task clearer.
+
+The implementer has a hard progress contract:
+
+- first repository edit by tool call 8;
+- at most 6 read/grep/LSP calls before that edit;
+- no web/Context7/semantic-index/node_modules research tools;
+- exact scope supplied by the orchestrator;
+- if facts are missing, return `NEEDS_RESEARCH` instead of continuing to read;
+- if the assignment is too large, return `SCOPE_TOO_LARGE` instead of spending
+  the step budget on reconnaissance.
+
+Expected statuses are:
+
+```text
+IMPLEMENTED
+NEEDS_RESEARCH
+SCOPE_TOO_LARGE
+BLOCKED_CONFLICT
+```
+
+A step-limit result, empty subagent result, or completed writer session with no
+edits where edits were expected is treated as an orchestration failure. Reuse
+any verified facts, shrink the slice, and do not replay the same brief.
+
+Sequential slices share the normal root working tree. Only one writer runs at a
+time, and later slices may consume earlier uncommitted output when the
+orchestrator explicitly planned that dependency. The orchestrator inspects the
+actual diff after every slice; writer summaries are not trusted as proof.
 
 ## Models
 
 Project agents do not pin provider-specific model IDs. The primary agent uses
-the model selected globally or for the current session, and subagents inherit
-the primary agent's model. This keeps the pack reusable when providers rename
-or retire models.
-
-To opt into role-specific models on one machine, override only the required
-agents in `~/.config/opencode/opencode.json`:
+the model selected globally/currently and subagents inherit it by default.
+Role-specific local overrides may be configured in
+`~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -56,63 +135,54 @@ agents in `~/.config/opencode/opencode.json`:
 }
 ```
 
-Always select IDs reported by `opencode models`.
+Use IDs reported by `opencode models`.
 
 ## Semantic codebase index
 
-The project enables the `open-codebase-index` OpenCode plugin directly through
-`opencode.json`. OpenCode installs configured npm plugins into its cache at
-startup, so the target repository does not need to add this plugin to its own
-application dependencies or lockfile.
+The project enables the `open-codebase-index` plugin through `opencode.json`.
+OpenCode installs configured npm plugins into its cache at startup, so target
+applications do not add the plugin to their own manifests/lockfiles.
 
-Project configuration lives in `.opencode/codebase-index.json`. The initial
-index is intentionally explicit (`autoIndex: false`) while file watching is
-enabled after indexing. This avoids an unexpected expensive first scan while
-still keeping an established index current during normal work.
-
-On a new checkout, start OpenCode and run:
+Configuration lives in `.opencode/codebase-index.json`. Initial indexing is
+explicit (`autoIndex: false`) and file watching is enabled afterward. On a new
+checkout:
 
 ```text
 /status
 /index
 ```
 
-The generated index is local runtime state under `.opencode/index/`; never
-commit it. The supplied ignore rules also exclude that directory from the
-OpenCode watcher. Current releases of `open-codebase-index` require Node.js
-22.13 or newer; Node.js 24 LTS is the recommended runtime upstream.
+The generated `.opencode/index/` directory is local runtime state and must stay
+ignored. If no embedding provider is available, indexing must fail fast and the
+workflow falls back to LSP/targeted repository search. The writer does not try
+to build or repair the index.
 
-Agent discovery follows a cost-aware order:
+Discovery ownership is intentionally asymmetric:
 
-1. semantic context/peek when the location of behavior is unknown;
-2. symbol lookup or call-graph tools for targeted structural questions;
-3. LSP for exact definitions and references;
-4. grep for exact or exhaustive textual matches.
-
-If the index is unavailable, stale, or its embedding provider cannot start,
-agents fall back to LSP and targeted repository search. Index availability is
-never a correctness prerequisite.
+1. orchestrator/researcher: semantic context/peek for conceptual discovery;
+2. orchestrator/researcher: implementation lookup/call graph when useful;
+3. all appropriate read-only roles: LSP for precise definitions/references;
+4. targeted grep for exact/exhaustive textual matches;
+5. implementer: only targeted read/LSP/grep inside a write-ready slice.
 
 ## MCP servers
 
-The project `opencode.json` enables two MCP servers in addition to the local
-codebase-index plugin:
+`opencode.json` enables Context7 and Playwright MCP in addition to the local
+codebase-index plugin.
 
-- Context7 supplies current, version-aware library documentation to research,
-  architecture, implementation, and diagnostic roles.
+- Context7 is for research, architecture, and diagnostic roles. The implementer
+  intentionally does not have Context7/web access; version/API facts must be
+  resolved before writing.
 - Playwright MCP gives `browser-qa` persistent exploratory browser access.
 
-Both MCP tool families are denied globally and enabled only for the roles that
-need them. GitHub uses the `gh` CLI instead of GitHub MCP because its concise,
-deterministic output consumes less model context. Filesystem, memory, and
-sequential-thinking MCPs are intentionally omitted because built-in tools,
-semantic indexing, and repository evidence already cover those responsibilities.
+Both MCP families are denied globally and enabled only for roles that need
+them. GitHub delivery uses the constrained `gh`/wrapper workflow rather than a
+broad GitHub MCP inside OpenCode.
 
 ### Context7 authentication
 
 The public endpoint works without committing credentials. For higher rate
-limits, add an API key only to the global config so it merges with the project
-server definition:
+limits configure the key globally:
 
 ```json
 {
@@ -126,42 +196,33 @@ server definition:
 }
 ```
 
-Export `CONTEXT7_API_KEY` before starting OpenCode. Never store the value in
-the repository.
+Never store the key in the repository.
 
 ### Playwright preflight
 
-The Playwright MCP package is pinned to `0.0.80`. On a new machine, warm the
-`npx` cache once before starting OpenCode:
+The Playwright MCP package is pinned in `opencode.json`. On a new machine warm
+the package cache and check MCP connectivity before relying on browser QA.
+Browser artifacts are isolated under `.artifacts/playwright` and ignored.
 
-```bash
-npx -y @playwright/mcp@0.0.80 --help
-opencode mcp list
-```
-
-`opencode mcp list` must finish and report both `playwright` and `context7`
-as connected. If it hangs on first use, complete the package download and
-restart OpenCode. Browser output is isolated under `.artifacts/playwright`
-and ignored by Git and the OpenCode watcher.
-
-`browser-qa` denies the RCE-equivalent
-`playwright_browser_run_code_unsafe` tool. Use synthetic data and local,
-preview, staging, or another explicitly approved environment; never assume
-production is safe to operate.
+`browser-qa` must use synthetic data and a local/preview/staging or otherwise
+explicitly approved environment. Exploratory MCP automation supplements but
+never replaces durable repository E2E tests.
 
 ## Parallel implementation
 
-Parallel implementation uses exactly two optional slots, `a` and `b`. It is an
-optimization for genuinely independent work, not a way to split arbitrary
-files between agents.
+Parallel mode uses exactly two optional slots, `a` and `b`. It parallelizes
+independent writer slices, not arbitrary files.
 
-The orchestrator may select parallel mode only when both units have disjoint
-write scopes, neither depends on the other's uncommitted result, and neither
-changes a shared mutable contract or integration hotspot such as manifests,
-lockfiles, migrations, generated registries, central exports, or schemas.
-Dependency changes always use sequential mode.
+Both slices must:
 
-The trusted wrapper owns the worktree lifecycle:
+- already be write-ready;
+- have disjoint write scopes;
+- have no dependency on the other's uncommitted output;
+- share no mutable contract/schema/manifest/lockfile/migration/generated
+  registry/central export/integration hotspot;
+- start from the same clean HEAD.
+
+The trusted wrapper owns lane lifecycle:
 
 ```bash
 bash .opencode/scripts/parallel-worktrees.sh create a src/module-a tests/module-a
@@ -174,111 +235,96 @@ bash .opencode/scripts/parallel-worktrees.sh cleanup a
 bash .opencode/scripts/parallel-worktrees.sh cleanup b
 ```
 
-`create` starts detached worktrees from the same clean HEAD under
-`.opencode/worktrees/<slot>` and stores scope/base metadata in Git's common
-metadata directory rather than in versioned files. It rejects overlapping
-scopes.
+`create` uses detached worktrees under `.opencode/worktrees/<slot>` and records
+scope/base metadata outside versioned files. It rejects overlapping scopes.
+Implementers cannot create, integrate, clean, or abort lanes. Lane `inspect`
+rejects commits/staging, out-of-scope writes, sensitive paths, secret-like
+additions, symlink/non-regular-file changes, and whitespace errors.
 
-Implementers may edit only their assigned nested worktree and scope. They may
-not stage, commit, switch branches, integrate, or clean up lanes. `inspect`
-rejects changed paths outside the lane, staged changes, lane commits, sensitive
-paths, secret-like additions, and whitespace errors before exposing a redacted
-diff for review.
+If parallel mode becomes invalid before integration, discard pending temporary
+lanes only through the SHA-bound abort wrapper and restart sequentially. Once a
+lane is integrated, do not abort it; resolve the combined root deliberately.
 
-`integrate` applies one reviewed lane back to the unchanged root HEAD and
-refuses changed-path overlap with work already integrated there. After both
-lanes are integrated, the ordinary root `github-delivery.sh inspect`, review,
-and validation gates apply to the combined result. `cleanup` removes only a
-lane already marked as integrated.
+After integration, all validation and final review operate on the combined root
+checkout.
 
-`.opencode/worktrees/` is ephemeral and must stay ignored by both Git and the
-OpenCode watcher. Never run two implementers against the same working tree.
-If scope independence becomes uncertain, stop parallelization instead of
-weakening these checks.
+## Dependency changes
 
-## Testing policy
+Dependency changes are a dedicated sequential first slice. The researcher first
+establishes the exact compatible package/version/API facts. The implementer then
+receives only the exact operation and runs the trusted
+`.opencode/scripts/dependency-update.sh` wrapper.
 
-Unit and integration tests must use the runner and scripts declared by the
-repository. Durable E2E coverage must be committed in the established framework
-such as Playwright Test or Cypress. If required coverage has no runner yet, add
-a normal dependency, configuration, script, and maintainable tests.
+The wrapper validates package identifiers, supports npm/Yarn/pnpm/Bun, disables
+lifecycle scripts, and refuses manager output outside package manifests and
+lockfiles. Manifest/lockfile changes are inspected and preliminarily reviewed
+before feature-code slices begin.
 
-Playwright MCP is supplementary exploratory QA for user journeys, responsive
-behavior, accessibility signals, console errors, and network failures. It is
-not a replacement for repeatable tests. Agents must never create ad hoc Python,
-Node.js, shell, or HTML scripts as a substitute for repository-native unit,
-integration, or E2E coverage.
+Do not combine dependency research, package installation, and feature coding in
+one implementer session.
 
-Required registry dependency changes use the trusted
-`.opencode/scripts/dependency-update.sh` wrapper. It must be the first mutation
-on a clean feature branch, accepts only validated package identifiers for npm,
-Yarn, pnpm, or Bun, distinguishes runtime and development dependencies through
-fixed actions, and always disables dependency lifecycle scripts. The wrapper
-also supports one validated mixed `batch` transaction and refuses manager
-output outside manifests and lockfiles. The resulting manifest and lockfile
-return through `inspect` and preliminary review before repository code runs.
-Project-specific generators and migrations must be exposed as reviewed
-repository scripts with an explicit local permission override, or run by the
-user; the portable pack does not auto-approve arbitrary generators.
+## Testing and review policy
+
+Implementers edit and return validation commands; they do not execute changed
+repository code.
+
+After preliminary inspection/review of executable inputs, the orchestrator or
+`test-debugger` runs repository-native validation in increasing cost order:
+focused tests, formatting/static checks, type checking, broader tests, then
+build/package/synthesis checks required by repository policy/CI.
+
+Use `test-debugger` for ambiguous failures, then route a confirmed repair back
+to a bounded implementer slice. `reviewer` performs independent final review;
+`security-reviewer` handles sensitive trust boundaries; `browser-qa` provides
+supplementary exploratory checks for changed user flows.
+
+Never create ad hoc Python/Node/shell/HTML scripts as substitutes for the
+repository's established unit/integration/E2E framework.
 
 ## GitHub delivery
 
-Before using `/implement`, authenticate GitHub CLI:
+Authenticate GitHub CLI before `/implement`:
 
 ```bash
 gh auth login
 gh auth status
 ```
 
-Invoke the complete workflow from a clean checkout:
+Then invoke:
 
 ```text
 /implement https://github.com/owner/repository/issues/123
 ```
 
-The command accepts exactly one open issue from the current `origin`. It uses
-a `feature/<issue-number>-<slug>` branch, one writer by default or at most two
-isolated worktree lanes when independence is proven, repository-native tests,
-independent review, a Conventional Commit, and a PR containing
-`Closes #<issue-number>`. It refuses to merge without reported successful
-GitHub Actions checks, a mergeable PR, completed review, and no active parallel
-lanes. CI repair is limited to two evidence-backed rounds. Success ends with
-squash merge, issue closure verification, remote and local branch cleanup, a
-fast-forwarded local `main`, and a clean working tree.
+The command validates the issue/repository, creates a
+`feature/<issue-number>-<slug>` branch, resolves research before writing,
+implements through bounded slices, validates/reviews the combined result,
+creates a Conventional Commit and PR with `Closes #<issue-number>`, waits for a
+stable passing Actions set, and squash-merges only the reviewed exact head.
+Cleanup verifies merge/issue state, removes the exact feature branch, updates
+local `main` by fast-forward only, and requires a clean tree.
 
-The workflow never stashes, resets, cleans, force-pushes, deploys, publishes, or
-mutates cloud resources by implication.
+The delivery workflow never stashes, resets, cleans, force-pushes, deploys,
+publishes, or mutates cloud resources by implication.
 
 ### Process isolation boundary
 
 OpenCode permissions constrain agent tool calls; they do not sandbox code run
-by a repository's test or build scripts. Such code executes as the operating
-system user and can read credentials available to that user. Run OpenCode in a
-dedicated OS account, development container, or disposable VM with only the
-minimum project credentials whenever the repository, dependencies, issue text,
-or generated patch is not fully trusted. Do not keep unrelated production or
-personal credentials in that execution environment. Independent review must
-inspect package scripts, hooks, CI changes, and other executable inputs before
-the orchestrator runs changed repository code.
+by repository tests/build scripts. Such code runs as the OS user and may access
+that user's credentials. For untrusted repositories/dependencies/issues, use a
+dedicated OS account, development container, or disposable VM with minimal
+credentials. Preliminary review must inspect changed executable inputs before
+the orchestrator runs them.
 
-All delivery Git and GitHub mutations are routed through the versioned
-`.opencode/scripts/github-delivery.sh` wrapper. It validates repository, issue,
-branch, PR, status checks, review state, and the exact reviewed head SHA before
-executing a bounded operation; raw mutation commands are denied to the
-orchestrator. Its argument-free `inspect` action is the shell-backed Git
-inspection surface for the canonical/root checkout.
-
-Parallel worktree creation, inspection, integration, and cleanup are routed
-through `.opencode/scripts/parallel-worktrees.sh`. That wrapper accepts only
-fixed actions and validated slot/scope arguments; implementers receive only its
-read-only lane `inspect` action.
+Git/GitHub mutations are routed through
+`.opencode/scripts/github-delivery.sh`. Parallel worktrees are routed through
+`.opencode/scripts/parallel-worktrees.sh` and the separate abort wrapper.
 
 ## Reusing in another repository
 
 1. Copy `opencode.json`, `.opencode/agents/`, `.opencode/commands/`,
    `.opencode/scripts/`, `.opencode/codebase-index.json`, and this README.
-2. Merge these ignore rules into the target repository's `.gitignore` instead
-   of overwriting existing rules:
+2. Merge these ignore rules into the target `.gitignore`:
 
    ```gitignore
    .artifacts/
@@ -286,14 +332,12 @@ read-only lane `inspect` action.
    .opencode/worktrees/
    ```
 
-3. Do not copy local index data, worktrees, `.opencode/package.json`, lockfiles,
-   `node_modules/`, or other local OpenCode state.
-4. Create a fresh project-specific `AGENTS.md` or run `/init`. Never copy
-   another project's architecture, commands, privacy rules, or release policy
-   unchanged.
-5. Verify available models with `opencode models`. Project files require no
-   edits unless you intentionally add role-specific overrides.
-6. Warm the Playwright package cache, restart OpenCode, and validate:
+3. Do not copy local index data, worktrees, local OpenCode package state, or
+   `node_modules`.
+4. Create a project-specific `AGENTS.md` or run `/init`; never copy another
+   project's product/privacy/release rules blindly.
+5. Verify models with `opencode models`.
+6. Validate configuration after copying:
 
 ```bash
 opencode debug config
@@ -301,6 +345,6 @@ opencode agent list
 opencode mcp list
 ```
 
-Then run `/status` and `/index` once to initialize the semantic project index.
-Configuration, agents, commands, skills, plugins, and MCP servers are loaded at
-session startup, so start a new session after changing the pack.
+Then run `/status` and `/index` when an embedding-capable provider is available.
+Configuration, agents, commands, plugins, and MCP servers are loaded at session
+startup, so start a new OpenCode session after changing the pack.
