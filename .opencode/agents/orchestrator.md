@@ -44,6 +44,7 @@ permission:
     "gh run view*": allow
     "bash .opencode/scripts/github-delivery.sh *": allow
     "bash .opencode/scripts/parallel-worktrees.sh *": allow
+    "bash .opencode/scripts/parallel-worktrees-abort.sh *": allow
     "npm test*": allow
     "npm run test*": allow
     "npm run lint*": allow
@@ -152,13 +153,15 @@ Parallel implementation is an optimization, never the default. Use it only when 
 When these conditions hold:
 
 1. Define lane `a` and lane `b`, including exact allowed scope paths and acceptance criteria for each.
-2. Create both detached worktrees from the same HEAD with `bash .opencode/scripts/parallel-worktrees.sh create <a|b> <scope-path>...`. The wrapper rejects overlapping scopes and records lane ownership outside the working tree.
+2. Create both detached worktrees from the same HEAD with `bash .opencode/scripts/parallel-worktrees.sh create <a|b> <scope-path>...`. Record each returned base SHA. The wrapper rejects overlapping scopes and records lane ownership outside the working tree.
 3. Give each background/concurrent `implementer` its lane ID, the returned `.opencode/worktrees/<slot>` path, and its exact scope. The implementer must read and edit only inside that worktree and must not touch the root checkout.
-4. When each lane returns, run `parallel-worktrees.sh inspect <slot>`. The wrapper rejects commits, staging, sensitive paths, out-of-scope writes, secret-like additions, and whitespace errors.
+4. When each lane returns, run `parallel-worktrees.sh inspect <slot>`. The wrapper rejects commits, staging, sensitive paths, out-of-scope writes, secret-like additions, symlink/non-regular-file changes, and whitespace errors.
 5. Review each lane independently before integration. If a lane needs repair, return only that lane to its implementer.
-6. Integrate the reviewed lanes one at a time with `parallel-worktrees.sh integrate <slot>`. Integration is allowed only while root HEAD still matches the shared base, existing root changes belong to already integrated lanes, and changed paths do not overlap.
+6. Integrate the reviewed lanes one at a time with `parallel-worktrees.sh integrate <slot>`. Integration is allowed only while root HEAD still matches the shared base, existing root changes exactly match already integrated lane manifests, and changed paths do not overlap.
 7. Run the normal root `github-delivery.sh inspect`, review the combined diff, then clean the ephemeral lanes with `parallel-worktrees.sh cleanup <slot>`.
 8. Run normal validation against the combined root checkout. Any integration-level defect returns to one normal implementer unless the repair still has two provably independent scopes.
+
+If parallel mode must be abandoned before integration—for example the second lane cannot be created or a cross-lane dependency appears—discard each pending lane explicitly with `bash .opencode/scripts/parallel-worktrees-abort.sh <slot> <recorded-base-sha>` while the root checkout is still clean, then continue sequentially. The abort wrapper is intentionally unavailable to implementers. If any lane has already been integrated, do not discard it; stop and resolve the combined root state deliberately.
 
 If independence is uncertain, if lane creation fails, or if the task touches a shared contract, stop parallelization and use one implementer. Never weaken scope checks to make parallelism fit.
 

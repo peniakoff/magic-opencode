@@ -41,14 +41,17 @@ Use at most two `implementer` instances and only when all conditions in the orch
 2. Create both lanes from the same clean feature-branch HEAD with:
    - `bash .opencode/scripts/parallel-worktrees.sh create a <scope-path>...`
    - `bash .opencode/scripts/parallel-worktrees.sh create b <scope-path>...`
-3. Launch both implementer tasks concurrently/background when supported. Each brief must contain its slot, `.opencode/worktrees/<slot>` path, exact scope, acceptance criteria, and a prohibition on touching the root checkout or the other lane.
-4. Each implementer is edit-only and must end by running `bash .opencode/scripts/parallel-worktrees.sh inspect <slot>`.
-5. Independently inspect and preliminarily review each lane before integration. Route lane-specific findings back only to that lane.
-6. Integrate reviewed lanes one at a time with `parallel-worktrees.sh integrate <slot>`. The wrapper verifies same base HEAD, disjoint scopes, no staging/commits, no out-of-scope changes, no sensitive paths, no secret-like additions, whitespace validity, and no overlap with root changes except already integrated lanes.
-7. Run the trusted root `github-delivery.sh inspect`, review the combined diff, then clean both ephemeral worktrees with `parallel-worktrees.sh cleanup <slot>`.
-8. Continue all testing, final review, commit, delivery, and CI from the combined root checkout only.
+   Record each returned base SHA before launching an implementer.
+3. If the second lane cannot be created, abandon every already-created pending lane while the root is still clean using `bash .opencode/scripts/parallel-worktrees-abort.sh <slot> <recorded-base-sha>`, then continue in sequential mode. Never remove a worktree with raw Git commands.
+4. Launch both implementer tasks concurrently/background when supported. Each brief must contain its slot, `.opencode/worktrees/<slot>` path, exact scope, acceptance criteria, and a prohibition on touching the root checkout or the other lane.
+5. Each implementer is edit-only and must end by running `bash .opencode/scripts/parallel-worktrees.sh inspect <slot>`.
+6. Independently inspect and preliminarily review each lane before integration. Route lane-specific findings back only to that lane.
+7. If review discovers a cross-lane dependency or a required shared-contract change before either lane is integrated, abort both pending lanes with the trusted abort wrapper and restart sequentially. This is an intentional discard of temporary lane work, so bind each abort to its recorded base SHA.
+8. Integrate reviewed lanes one at a time with `parallel-worktrees.sh integrate <slot>`. The wrapper verifies same base HEAD, disjoint scopes, no staging/commits, no out-of-scope changes, no sensitive paths, no secret-like additions, no symlink/non-regular-file changes, whitespace validity, and no overlap with root changes except exact manifests from already integrated lanes.
+9. Run the trusted root `github-delivery.sh inspect`, review the combined diff, then clean both ephemeral worktrees with `parallel-worktrees.sh cleanup <slot>`.
+10. Continue all testing, final review, commit, delivery, and CI from the combined root checkout only.
 
-If any parallel precondition fails, do not weaken the checks; cleanly fall back to sequential mode before implementation begins. If a cross-lane dependency appears after work starts, stop integration and report it rather than broadening either lane.
+If any parallel precondition fails, do not weaken the checks. Fall back to sequential mode before integration. Once a lane has been integrated, never use the abort wrapper for it; stop and resolve the combined root state deliberately.
 
 ## 4. Implementation and testing rules
 
