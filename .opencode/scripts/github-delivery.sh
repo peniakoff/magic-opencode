@@ -116,6 +116,35 @@ require_passing_checks() {
     die "not every pull request check passed"
 }
 
+ci_receipt_path() {
+  require_pr_number "$1"
+  git rev-parse --git-path "opencode-ci-proof-$1.json"
+}
+
+write_ci_receipt() {
+  local number="$1" head_sha="$2" check_names="$3" path
+  path="$(ci_receipt_path "$number")"
+  jq -n --arg head "$head_sha" --arg checks "$check_names" \
+    '{head: $head, checks: $checks}' >"$path"
+}
+
+require_ci_receipt() {
+  local number="$1" expected_head="$2" current_checks="$3"
+  local path recorded_head recorded_checks
+  path="$(ci_receipt_path "$number")"
+  [[ -f "$path" ]] || die "stable CI proof is missing; run wait-checks first"
+  recorded_head="$(jq -r '.head // ""' "$path")"
+  recorded_checks="$(jq -r '.checks // ""' "$path")"
+  [[ "$recorded_head" == "$expected_head" ]] ||
+    die "CI proof belongs to a different pull request head; run wait-checks again"
+  [[ "$recorded_checks" == "$current_checks" ]] ||
+    die "pull request check set changed after stabilization; run wait-checks again"
+}
+
+clear_ci_receipt() {
+  rm -f -- "$(ci_receipt_path "$1")"
+}
+
 is_sensitive_path() {
   local normalized_path
   normalized_path="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
@@ -359,13 +388,17 @@ wait_checks() {
   require_pr_number "$1"
   REPOSITORY="$(repository_from_origin)"
   require_feature_branch
+  clear_ci_receipt "$1"
 
-  local pr_json check_count attempt known_checks current_checks stable_rounds watch_rounds
+  local pr_json check_count attempt known_checks current_checks stable_rounds watch_rounds head_sha
   check_count=0
   for attempt in 1 2 3 4 5 6 7; do
     pr_json="$(read_pr "$1")"
     require_pr_binding "$1" "$pr_json"
     check_count="$(jq '.statusCheckRollup | length' <<<"$pr_json")"
+    if [[ "$check_count" -gt 0 ]]; then
+      break
+    fi
     [[ "$attempt" -eq 7 ]] || sleep 10
   done
   [[ "$check_count" -gt 0 ]] || die "no checks appeared during the 60-second registration window"
@@ -389,6 +422,8 @@ wait_checks() {
     [[ "$stable_rounds" -ge 4 ]] || sleep 10
   done
   [[ "$stable_rounds" -ge 4 ]] || die "pull request check set did not stabilize"
+  head_sha="$(jq -r '.headRefOid' <<<"$pr_json")"
+  write_ci_receipt "$1" "$head_sha" "$known_checks"
 }
 
 merge_pr() {
@@ -397,23 +432,26 @@ merge_pr() {
   [[ "$2" =~ ^[0-9a-f]{40}$ ]] || die "invalid expected head SHA"
   REPOSITORY="$(repository_from_origin)"
   require_feature_branch
-  wait_checks "$1"
 
-  local pr_json state mergeable review_decision head_sha
+  local pr_json state mergeable review_decision head_sha current_checks
   pr_json="$(read_pr "$1")"
   require_pr_binding "$1" "$pr_json"
   state="$(jq -r '.state' <<<"$pr_json")"
   mergeable="$(jq -r '.mergeable' <<<"$pr_json")"
   review_decision="$(jq -r '.reviewDecision // ""' <<<"$pr_json")"
   head_sha="$(jq -r '.headRefOid' <<<"$pr_json")"
+  current_checks="$(jq -r '.statusCheckRollup[].name' <<<"$pr_json" | sort -u)"
   [[ "$state" == "OPEN" ]] || die "pull request is not open"
   [[ "$mergeable" == "MERGEABLE" ]] || die "pull request is not mergeable"
   [[ "$review_decision" != "CHANGES_REQUESTED" && "$review_decision" != "REVIEW_REQUIRED" ]] ||
     die "pull request review is incomplete"
   [[ "$head_sha" == "$2" ]] || die "pull request head changed after validation"
+  [[ -n "$current_checks" ]] || die "pull request check set is empty"
+  require_ci_receipt "$1" "$2" "$current_checks"
   require_passing_checks "$1"
   gh pr merge "$1" --repo "$REPOSITORY" --squash --delete-branch \
     --match-head-commit "$2"
+  clear_ci_receipt "$1"
 }
 
 cleanup() {
@@ -456,6 +494,7 @@ cleanup() {
   if [[ "$issue_state" == "OPEN" ]]; then
     gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed
   fi
+  clear_ci_receipt "$2"
   require_clean_tree
 }
 
