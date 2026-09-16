@@ -59,6 +59,20 @@ Every implementer brief must be write-ready and contain:
 
 Do not include exploratory transcripts or unresolved alternatives.
 
+### User-visible progress tracking
+
+Immediately after the implementation-slice plan is stable, and before dispatching the first implementer, call `todowrite` in the parent orchestrator session. The right-panel todo list is the canonical user-visible view of workflow progress.
+
+- Materialize the actual planned workflow, not internal reasoning. Keep the list concise, normally 4-10 items.
+- Include one item per meaningful implementation slice plus the major gates that remain, such as validation, final review, PR/CI, merge, and cleanup. Do not create a todo for every tool call.
+- If preflight/research/design already completed before the list is created, include them only when useful and mark them completed; do not pretend they are still pending.
+- Before starting a sequential phase or slice, update the list so exactly that item is `in_progress`. Immediately after its result is verified, mark it `completed` before moving to the next item.
+- For parallel implementation, use one parent progress item such as `Implement parallel slices A + B` while both lanes are active; keep lane-level details in the conversation rather than creating competing primary progress states.
+- When `NEEDS_RESEARCH`, `SCOPE_TOO_LARGE`, a repair round, or another event changes the plan, update `todowrite` immediately: replace obsolete pending items, add the new bounded work, and never leave a superseded item `in_progress`.
+- Keep validation, review, delivery, CI, merge, and cleanup visible as separate remaining phases when they are part of this command.
+- The orchestrator owns this parent-session list. Never rely on a subagent's private todo list as a substitute for parent-session progress.
+- Before the final report, ensure every finished item is `completed` and no stale `in_progress` item remains. If the workflow stops early, leave only genuinely unfinished work pending and explain the blocker in the response.
+
 ## 4. Execute slices
 
 ### Sequential mode — default
@@ -69,13 +83,14 @@ After every `IMPLEMENTED` result:
 
 1. Run `bash .opencode/scripts/github-delivery.sh inspect`.
 2. Verify the actual changed paths are compatible with the slice; do not trust the summary alone.
-3. Preserve the combined uncommitted root changes and dispatch the next dependency-ordered slice.
+3. Mark the corresponding parent-session todo item completed only after this verification.
+4. Preserve the combined uncommitted root changes and dispatch the next dependency-ordered slice, first marking its todo item in progress.
 
-On `NEEDS_RESEARCH`, answer the exact blocking question via orchestrator tools or `research-explorer`, then redispatch the now write-ready small slice. Never tell the implementer to keep researching.
+On `NEEDS_RESEARCH`, answer the exact blocking question via orchestrator tools or `research-explorer`, update the todo plan, then redispatch the now write-ready small slice. Never tell the implementer to keep researching.
 
-On `SCOPE_TOO_LARGE`, split the slice. Do not raise the step budget or replay the same brief.
+On `SCOPE_TOO_LARGE`, split the slice and update the todo list to reflect the replacement slices. Do not raise the step budget or replay the same brief.
 
-On empty output, step-limit exhaustion, or a completed task with zero edits where edits were expected, treat it as an orchestration failure: recover verified facts from the report/session if available, shrink the slice, and do not relaunch the same giant brief unchanged.
+On empty output, step-limit exhaustion, or a completed task with zero edits where edits were expected, treat it as an orchestration failure: recover verified facts from the report/session if available, shrink the slice, update the todo plan, and do not relaunch the same giant brief unchanged.
 
 ### Dependency-only slice
 
@@ -87,11 +102,11 @@ Use at most two concurrent implementers only when both slices have explicit disj
 
 1. Create lane `a` and `b` from the same clean HEAD using `parallel-worktrees.sh create`; record both base SHAs.
 2. If second-lane creation fails, abort all pending lanes with `parallel-worktrees-abort.sh <slot> <base-sha>` while root is clean and continue sequentially.
-3. Dispatch both write-ready briefs concurrently/background when supported. Each brief includes lane/root/scope and the normal first-edit contract.
+3. Mark the parent parallel-implementation todo item `in_progress`, then dispatch both write-ready briefs concurrently/background when supported. Each brief includes lane/root/scope and the normal first-edit contract.
 4. Each implementer ends with lane `inspect`. Independently inspect/review both actual diffs.
-5. If a cross-lane dependency appears before integration, abort both pending lanes and restart sequentially.
+5. If a cross-lane dependency appears before integration, abort both pending lanes, replace the parent todo item with the new sequential plan, and restart sequentially.
 6. Integrate reviewed lanes one at a time with `parallel-worktrees.sh integrate`.
-7. Inspect the combined root diff, clean integrated lanes, then continue validation/review from root only.
+7. Inspect the combined root diff, clean integrated lanes, mark the parent parallel todo item completed, then continue validation/review from root only.
 
 Never weaken lane checks to make parallelism fit. Once a lane is integrated, do not abort it.
 
@@ -99,30 +114,32 @@ Never weaken lane checks to make parallelism fit. Once a lane is integrated, do 
 
 Before executing changed repository code, inspect the combined diff and preliminarily review executable inputs such as package scripts/hooks, build configuration, CI, generators, migrations, and tests. Route any correction through a bounded implementer repair slice and inspect again.
 
-Then run repository-native checks in increasing cost order: focused tests, formatting/static analysis, type checking, broader tests, then build/package/synthesis checks required by repository policy/CI. The implementer does not run these commands.
+Mark the validation todo item `in_progress` before running repository-native checks in increasing cost order: focused tests, formatting/static analysis, type checking, broader tests, then build/package/synthesis checks required by repository policy/CI. The implementer does not run these commands. Mark validation completed only after the required commands have reported their results or a transparent blocker has been established.
 
-Use `test-debugger` only when a failure's cause is ambiguous. Once a causal code defect is identified, return the repair to a bounded implementer slice. Use `security-reviewer` for sensitive trust boundaries and `browser-qa` as supplementary exploratory evidence for changed user-facing web flows.
+Use `test-debugger` only when a failure's cause is ambiguous. Once a causal code defect is identified, update the todo plan with a bounded repair slice and return the repair to `implementer`. Use `security-reviewer` for sensitive trust boundaries and `browser-qa` as supplementary exploratory evidence for changed user-facing web flows.
 
 Never create ad hoc scripts as substitutes for the repository's normal test framework.
 
 ## 6. Independent final review
 
-Run the trusted root `inspect` again and call `reviewer` with acceptance criteria, the actual combined diff/changed paths, and exact validation results for substantial or risky changes.
+Mark final review `in_progress`, run the trusted root `inspect` again, and call `reviewer` with acceptance criteria, the actual combined diff/changed paths, and exact validation results for substantial or risky changes.
 
-Route actionable findings through bounded repair slices, rerun affected checks plus the required full validation, and re-review when warranted. Do not deliver with unresolved actionable findings, unexplained failures, or active parallel lanes.
+Route actionable findings through bounded repair slices, rerun affected checks plus the required full validation, and re-review when warranted. Mark final review completed only when no actionable finding remains. Do not deliver with unresolved actionable findings, unexplained failures, or active parallel lanes.
 
 ## 7. Commit, PR, CI, merge
 
-1. Run final root `inspect`. Pass the complete task-owned changed-path list to `github-delivery.sh commit <conventional-message> <path>...`; the wrapper requires an exact path match, an empty initial index, secret/sensitive-path checks, and whitespace-valid staged diff.
+1. Mark delivery `in_progress`, run final root `inspect`, and pass the complete task-owned changed-path list to `github-delivery.sh commit <conventional-message> <path>...`; the wrapper requires an exact path match, an empty initial index, secret/sensitive-path checks, and whitespace-valid staged diff.
 2. Run wrapper `push`, then `create-pr <issue-url> <title> <body>`. The body must summarize implementation, exact local validation, risks/migrations, and contain `Closes #<issue-number>`.
 3. Before each mutation, revalidate origin, issue, current feature branch, PR head/base/number, and reviewed head SHA.
-4. Run `wait-checks <pr-number>`. No checks, unstable/pending checks, review requirements, conflicts, or skipped/cancelled/failed checks block merge.
-5. For CI failures, diagnose evidence first. Allow at most two evidence-backed repair rounds; each round returns through bounded implementation, local validation, review, push, and CI wait. After two unsuccessful rounds leave the PR open and report the first causal failure.
-6. When mergeable, reviewed, and all checks pass, record `headRefOid` and run `github-delivery.sh merge <pr-number> <head-sha>` for squash merge. Do not silently fall back to another merge method.
+4. Mark CI `in_progress` once the PR exists, then run `wait-checks <pr-number>`. No checks, unstable/pending checks, review requirements, conflicts, or skipped/cancelled/failed checks block merge. Mark CI completed only when required checks have passed.
+5. For CI failures, diagnose evidence first. Allow at most two evidence-backed repair rounds; each round updates the todo plan and returns through bounded implementation, local validation, review, push, and CI wait. After two unsuccessful rounds leave the PR open and report the first causal failure.
+6. When mergeable, reviewed, and all checks pass, mark merge `in_progress`, record `headRefOid`, and run `github-delivery.sh merge <pr-number> <head-sha>` for squash merge. Do not silently fall back to another merge method. Mark merge completed only after GitHub confirms it.
 
 ## 8. Cleanup and report
 
-Confirm GitHub reports the PR merged and issue closed. Run `github-delivery.sh cleanup <issue-url> <pr-number>` to fast-forward local main, remove the exact validated local feature branch when appropriate, verify the remote feature branch is gone, close the issue if still open, and require a clean tree.
+Mark cleanup `in_progress`, confirm GitHub reports the PR merged and issue closed, then run `github-delivery.sh cleanup <issue-url> <pr-number>` to fast-forward local main, remove the exact validated local feature branch when appropriate, verify the remote feature branch is gone, close the issue if still open, and require a clean tree. Mark cleanup completed after verification.
+
+Before the final response, perform one final `todowrite` update so all completed workflow items are visibly completed and no stale item remains in progress.
 
 Report issue URL, PR URL, final commit on `main`, behavior changed, implementation slices used (including parallel lanes if any), exact validation results, Actions outcome, squash merge, issue state, and branch cleanup.
 
