@@ -130,16 +130,37 @@ Route actionable findings through bounded repair slices, rerun affected checks p
 
 ## 7. Commit, PR, CI, merge
 
-1. Mark delivery `in_progress`, run final root `inspect`, and pass the complete task-owned changed-path list to `github-delivery.sh commit <conventional-message> <path>...`; the wrapper requires an exact path match, an empty initial index, secret/sensitive-path checks, and whitespace-valid staged diff.
-2. Run wrapper `push`, then `create-pr <issue-url> <title> <body>`. The body must summarize implementation, exact local validation, risks/migrations, and contain `Closes #<issue-number>`.
+### Shell-safe delivery wrapper contract
+
+Every `github-delivery.sh` action must be its own standalone `bash` tool call. Never combine a delivery-wrapper invocation with another command using `;`, `&&`, `||`, `|`, redirection, command substitution, or backticks.
+
+Treat wrapper arguments as an argv contract, not prose pasted into a shell command:
+
+- Any argument containing whitespace or shell-significant syntax must be quoted so it reaches the wrapper as exactly one argument.
+- The Conventional Commit subject passed to `commit` must always be exactly one quoted argument.
+- Keep free-text wrapper arguments shell-policy-safe: do not include `;`, `|`, `&&`, `||`, redirection operators, `$()`, or backticks even inside quotes, because the permission layer may reject the command before shell execution.
+- Do not omit quotes around a multi-word commit subject.
+
+Correct:
+
+`bash .opencode/scripts/github-delivery.sh commit "feat(config): add YAML diagnosis parser" CHANGELOG.md domain/config-validation.ts`
+
+Incorrect:
+
+`bash .opencode/scripts/github-delivery.sh commit feat(config): add YAML diagnosis parser CHANGELOG.md domain/config-validation.ts`
+
+If a trusted wrapper call is denied by tool policy, inspect the exact emitted command before declaring delivery blocked. When the denial was caused by malformed quoting, accidental command chaining, or another violation of this shell-safe contract, correct the invocation and retry the same wrapper action once using the canonical standalone form. Do not weaken permissions and do not repeat an identical denied command.
+
+1. Mark delivery `in_progress`, run final root `inspect`, and pass the complete task-owned changed-path list to `github-delivery.sh commit <conventional-message> <path>...`; the wrapper requires an exact path match, an empty initial index, secret/sensitive-path checks, and whitespace-valid staged diff. The entire Conventional Commit subject is one quoted shell argument.
+2. Run wrapper `push` as a separate tool call, then `create-pr <issue-url> <title> <body>` as another separate tool call. Quote each multi-word title/body argument as one argument and keep the text free of the explicitly denied shell operator characters above. The body must summarize implementation, exact local validation, risks/migrations, and contain `Closes #<issue-number>`.
 3. Before each mutation, revalidate origin, issue, current feature branch, PR head/base/number, and reviewed head SHA.
-4. Mark CI `in_progress` once the PR exists, then run `wait-checks <pr-number>`. No checks, unstable/pending checks, review requirements, conflicts, or skipped/cancelled/failed checks block merge. Mark CI completed only when required checks have passed.
+4. Mark CI `in_progress` once the PR exists, then run `wait-checks <pr-number>` as a standalone wrapper call. No checks, unstable/pending checks, review requirements, conflicts, or skipped/cancelled/failed checks block merge. Mark CI completed only when required checks have passed.
 5. For CI failures, diagnose evidence first. Allow at most two evidence-backed repair rounds; each round updates the todo plan and returns through deterministic formatting when applicable or bounded implementation for actual code defects, local validation, review, push, and CI wait. After two unsuccessful rounds leave the PR open and report the first causal failure.
-6. When mergeable, reviewed, and all checks pass, mark merge `in_progress`, record `headRefOid`, and run `github-delivery.sh merge <pr-number> <head-sha>` for squash merge. Do not silently fall back to another merge method. Mark merge completed only after GitHub confirms it.
+6. When mergeable, reviewed, and all checks pass, mark merge `in_progress`, record `headRefOid`, and run `github-delivery.sh merge <pr-number> <head-sha>` as a standalone wrapper call for squash merge. Do not silently fall back to another merge method. Mark merge completed only after GitHub confirms it.
 
 ## 8. Cleanup and report
 
-Mark cleanup `in_progress`, confirm GitHub reports the PR merged and issue closed, then run `github-delivery.sh cleanup <issue-url> <pr-number>` to fast-forward local main, remove the exact validated local feature branch when appropriate, verify the remote feature branch is gone, close the issue if still open, and require a clean tree. Mark cleanup completed after verification.
+Mark cleanup `in_progress`, confirm GitHub reports the PR merged and issue closed, then run `github-delivery.sh cleanup <issue-url> <pr-number>` as a standalone wrapper call to fast-forward local main, remove the exact validated local feature branch when appropriate, verify the remote feature branch is gone, close the issue if still open, and require a clean tree. Mark cleanup completed after verification.
 
 Before the final response, perform one final `todowrite` update so all completed workflow items are visibly completed and no stale item remains in progress.
 
