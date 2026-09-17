@@ -41,7 +41,8 @@ this workflow creates a PR.
 3. `create-pr <issue-url> <quoted-title> <quoted-body>` separately. Body must
    summarize implementation, exact local validation, risks/migrations, and
    include `Closes #<issue-number>`.
-4. Mark CI `in_progress`; `wait-checks <pr-number>` **once**.
+4. Mark CI `in_progress`; tell the user that checks are running, then
+   `wait-checks <pr-number>` **once**.
 5. CI failures: diagnose evidence first; at most two evidence-backed repair
    rounds. Any pushed repair invalidates the old CI proof — re-validate/review
    and `wait-checks` again for the new head.

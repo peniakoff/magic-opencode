@@ -3,14 +3,19 @@
 Shared by `/implement` and `/work`. The parent chat is the orchestrator: it never
 edits repository files. Only the `implementer` Task subagent writes.
 
-## Progress tracking
+## Progress and visibility
 
 Maintain the parent-session todo list with TodoWrite for every non-trivial task.
+This list drives the user's Cursor progress panel and is part of the workflow
+contract, not optional internal bookkeeping.
 
-- Create or refresh the list as soon as the ordered slice plan is stable and
-  before the first implementer call.
-- Keep 4–10 items: one per meaningful slice plus validation, review, and (for
-  `/implement`) delivery, CI, merge, cleanup.
+- Create the skeleton list as the **first tool call**, before preflight,
+  research, or any Task dispatch. Use `merge: false` and mark the first item
+  `in_progress`.
+- Keep 4–10 items: major gates first (preflight, research/architecture, plan,
+  implement, validation, review, and — for `/implement` — delivery, CI, merge,
+  cleanup). When the ordered slice plan is stable, replace the generic implement
+  item with one todo per meaningful slice.
 - Exactly one item `in_progress` during sequential work.
 - For two parallel lanes, use one parent item such as
   `Implement parallel slices A + B`.
@@ -18,6 +23,32 @@ Maintain the parent-session todo list with TodoWrite for every non-trivial task.
   immediately; never leave a superseded item `in_progress`.
 - Before the final response, finalize todos so nothing stale remains
   `in_progress`.
+
+### Narration
+
+Cursor shows collapsed tool cards unless the orchestrator speaks. Write one
+short sentence to the user:
+
+- before each major phase;
+- before every Task dispatch: which agent, why, and what it will return;
+- after every Task returns: status plus changed paths (or that no files changed).
+
+Do not dump briefs, diffs, or raw tool output into chat.
+
+### Named Task and Shell cards
+
+Every Task call must set:
+
+- `subagent_type` to exactly one of: `research-explorer`, `architect`,
+  `implementer`, `test-debugger`, `reviewer`, `security-reviewer`, `browser-qa`;
+- `description` as `<agent>: <goal>` (3–6 words, unique in the session);
+- `model` to `inherit`.
+
+Never substitute `generalPurpose`, `explore`, or any other built-in type for a
+pack agent. Only `implementer` may edit repository files.
+
+Every bash wrapper call must include a 5–10 word `description` so the UI card
+is not a bare "Run command" (for example `Prepare feature branch from issue`).
 
 ## Authority
 

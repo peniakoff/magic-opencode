@@ -76,6 +76,22 @@ final-tree validation → review
 Sequential slices are the default. At most two parallel lanes, only when scopes
 are proven independent, via `.cursor/scripts/parallel-worktrees.sh`.
 
+## What you see in Cursor
+
+A well-run `/implement` or `/work` session should show:
+
+- a **todo list** from the first tool call (preflight through review, plus
+  delivery for `/implement`), with one item in progress;
+- **named subagent cards** such as `research-explorer: resolve API facts`,
+  not a bare "Task";
+- **named shell cards** such as `Prepare feature branch from issue`, not a
+  bare "Run command";
+- a short sentence before each phase and before each subagent dispatch.
+
+When editing files under `agents/`, keep the YAML `description` on **one
+line**. Cursor's Task catalog treats a folded `description: >-` block as the
+literal string `>-`, so the agent appears to have no description.
+
 ## Script discipline
 
 Run wrappers from the repository root as standalone bash calls. Do not combine

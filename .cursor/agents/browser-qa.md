@@ -1,9 +1,6 @@
 ---
 name: browser-qa
-description: >-
-  Exercises a running web application like a user, checking critical flows,
-  responsive behavior, accessibility signals, console output, and network
-  failures. Use for exploratory QA of changed user-facing web flows.
+description: Exercises a running web application like a user, checking critical flows, responsive behavior, accessibility signals, console output, and network failures. Use for exploratory QA of changed user-facing web flows.
 model: inherit
 readonly: true
 ---

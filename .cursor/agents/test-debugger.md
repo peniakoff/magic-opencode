@@ -1,9 +1,6 @@
 ---
 name: test-debugger
-description: >-
-  Reproduces test, build, runtime, and CI failures; isolates root cause and
-  returns an evidence-backed minimal repair brief. Use for ambiguous failures;
-  do not edit files.
+description: Reproduces test, build, runtime, and CI failures; isolates root cause and returns an evidence-backed minimal repair brief. Use for ambiguous failures; do not edit files.
 model: inherit
 readonly: true
 ---

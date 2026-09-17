@@ -1,9 +1,6 @@
 ---
 name: security-reviewer
-description: >-
-  Focused security review of sensitive changes involving identity, tenants,
-  payments, untrusted input, secrets, data, dependencies, or infrastructure
-  boundaries. Use when those trust boundaries are in scope.
+description: Focused security review of sensitive changes involving identity, tenants, payments, untrusted input, secrets, data, dependencies, or infrastructure boundaries. Use when those trust boundaries are in scope.
 model: inherit
 readonly: true
 ---

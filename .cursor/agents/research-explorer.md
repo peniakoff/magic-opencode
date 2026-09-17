@@ -1,9 +1,6 @@
 ---
 name: research-explorer
-description: >-
-  Read-only repository and external research that returns an implementation-ready
-  evidence packet. Use before dispatching implementer when APIs, dependencies,
-  call paths, blast radius, or conventions are unresolved.
+description: Read-only repository and external research that returns an implementation-ready evidence packet. Use before dispatching implementer when APIs, dependencies, call paths, blast radius, or conventions are unresolved.
 model: inherit
 readonly: true
 ---

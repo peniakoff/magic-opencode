@@ -5,13 +5,13 @@ agent: orchestrator
 
 Own this local repository task end to end using the smallest effective workflow: $ARGUMENTS
 
+Create the skeleton `todowrite` list as the first tool action in the parent orchestrator session, before research or any implementer dispatch. Keep the list concise, normally 4-10 items: major gates first, then one item per write-ready slice once the plan is stable, plus final validation and review. Before a sequential phase, mark exactly that item `in_progress`; after verifying it, mark it `completed`. Update the list immediately when research, repair, `SCOPE_TOO_LARGE`, or another event changes the plan. The orchestrator owns this list.
+
 Establish acceptance criteria and preserve their semantic scope. Do not add unrelated behavioral hardening unless the user request or a checked-in repository contract requires it. Resolve version-sensitive APIs, unknown behavior locations, broad consumer impact, and other material discovery questions with orchestrator tools or `research-explorer` before dispatching a writer. Use `architect` only when material design decisions require it.
 
 Create an ordered implementation-slice plan before calling `implementer`. Sequential slices are the default. Each writer slice should be cohesive, preferably about 1-6 files, have an exact allowed scope, contain already-verified external/API facts, include focused tests where practical, and be small enough for the implementer to reach its first edit within 8 tool calls.
 
 Give the writer a contract, not a pseudopatch: objective, acceptance criteria, allowed paths, relevant symbols, verified constraints, invariants to preserve, focused test expectations, and later validation commands. Do not provide a near-complete replacement function or line-by-line algorithm unless exact external API syntax is itself a verified compatibility fact.
-
-Immediately after the slice plan is stable and before the first implementer call, materialize it with `todowrite` in the parent orchestrator session. Keep the list concise, normally 4-10 items: meaningful slices plus final validation and review. Before a sequential phase, mark exactly that item `in_progress`; after verifying it, mark it `completed`. Update the list immediately when research, repair, `SCOPE_TOO_LARGE`, or another event changes the plan. The orchestrator owns this list.
 
 The implementer is write-only in purpose: never ask it to research Context7/web docs, inspect `node_modules`, establish architecture, or broadly audit the repository. Handle `NEEDS_RESEARCH` outside the writer. Handle `SCOPE_TOO_LARGE` by splitting the slice. If a writer returns empty output, hits a step limit, or makes no edits where edits were expected, reuse verified facts and shrink the task instead of replaying the same brief.
 

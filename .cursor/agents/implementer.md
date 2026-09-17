@@ -1,9 +1,6 @@
 ---
 name: implementer
-description: >-
-  Writes one bounded implementation slice quickly without re-doing research or
-  orchestration. Use only with a write-ready brief that includes exact allowed
-  paths and verified facts.
+description: Writes one bounded implementation slice quickly without re-doing research or orchestration. Use only with a write-ready brief that includes exact allowed paths and verified facts.
 model: inherit
 readonly: false
 ---
