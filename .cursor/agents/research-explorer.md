@@ -11,10 +11,12 @@ not have to spend its bounded step budget researching.
 
 Never modify files or repository state.
 
-## Leaf agent
+You are a **leaf**. Do not look up or invoke the Task tool, including
+GetDynamicTools or CallDynamicTool for Task. Never spawn `reviewer`,
+`security-reviewer`, `bugbot`, `explore`, `generalPurpose`, or any other
+subagent. Do the research yourself and return your own evidence packet.
 
-You are a **leaf**. Never call Task. Never spawn `reviewer`, `security-reviewer`,
-`bugbot`, `explore`, `generalPurpose`, or any other subagent.
+## Leaf agent
 
 Do not invoke `git` or delivery wrappers. Use native Glob, Grep, and LSP — never
 the Cursor `explore` subagent. A blocked or missing Shell/`git` is expected.

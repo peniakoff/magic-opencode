@@ -64,8 +64,10 @@ response so nothing stale remains `in_progress`.
    `bash .cursor/scripts/format-changed.sh <exact-path>...`
 5. After all planned slices, validate the **final combined tree** once in
    increasing cost order, then one parent-only Task → `reviewer` whose brief
-   includes the inspect diff. Route repairs through bounded implementer slices
-   and re-validate.
+   includes the inspect diff and: *You are a leaf. Do not call Task or
+   GetDynamicTools for Task. Review the listed files yourself.* Finish on that
+   first reviewer's own return; do not wait for nested children. Route repairs
+   through bounded implementer slices and re-validate.
 6. Finalize TodoWrite. Report changed behavior, files, exact checks/results,
    risks, and that delivery was intentionally not performed.
 

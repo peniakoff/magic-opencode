@@ -84,7 +84,10 @@ becomes relevant only after this workflow creates the PR.
    checks only between slices.
 5. **Validate final tree once** — full suite after all planned slices.
 6. **Independent review** — parent-only Task; one `reviewer`; brief includes
-   inspect diff; plus security/browser when warranted; repair until clean.
+   inspect diff and this leaf line: *You are a leaf. Do not call Task or
+   GetDynamicTools for Task. Review the listed files yourself.* Plus
+   security/browser when warranted; repair until clean. Finish on that first
+   reviewer's own return; do not wait for nested children.
 7. **Commit, PR, CI, merge** — [delivery.md](references/delivery.md) sequence.
 8. **Cleanup and report** — `cleanup`, finalize todos, report evidence.
 

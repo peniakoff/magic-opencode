@@ -38,8 +38,9 @@ Do not dump briefs, diffs, or raw tool output into chat.
 ### Named Task and Shell cards
 
 Only the **parent** `/implement` or `/work` session may call Task. Specialists
-are leaves: if one returns an incomplete answer, shrink/rebrief and dispatch
-**one** replacement yourself. Never tell a specialist to spawn help.
+are leaves: they must not look up or invoke Task. If one returns an incomplete
+answer, shrink/rebrief and dispatch **one** replacement yourself. Never tell a
+specialist to spawn help.
 
 Every Task call must set:
 
@@ -53,7 +54,9 @@ built-in type for a pack agent. Only `implementer` may edit repository files.
 
 At most one `reviewer` Task per review gate. A `security-reviewer` may run in
 the **same parent message** only when trust boundaries are in scope. Re-review
-is a new sequential parent dispatch after repair, not a nested child.
+is a new sequential parent dispatch after repair, not a nested child. Every
+`reviewer` and `security-reviewer` brief must include: *You are a leaf. Do not
+call Task or GetDynamicTools for Task. Review the listed files yourself.*
 
 Every bash wrapper call must include a 5–10 word `description` so the UI card
 is not a bare "Run command" (for example `Prepare feature branch from issue`).
@@ -177,13 +180,18 @@ Only after all planned implementation and metadata slices:
 
 Call Task → `reviewer` once with acceptance criteria, exact validation results,
 and the `github-delivery.sh inspect` output (changed paths plus the diff or a
-file+hunk list). Do not tell the reviewer to run `git` or inspect itself.
+file+hunk list). Put this leaf line in the brief: *You are a leaf. Do not call
+Task or GetDynamicTools for Task. Review the listed files yourself.* Do not
+tell the reviewer to run `git` or inspect itself.
 
 Use `security-reviewer` in the same parent message only for sensitive trust
 boundaries, and `browser-qa` for exploratory user-flow checks when warranted.
-Never `bugbot`. Write one sentence before dispatch and one after return. If the
-reviewer still spawned a child, ignore that child's work and treat it as an
-orchestration defect — do not wait for extra reviews.
+Never `bugbot`. Write one sentence before dispatch and one after return.
+
+Finish the review gate on that **first** reviewer's own return (APPROVE /
+REQUEST_CHANGES plus findings). Nested Task children from a specialist are not
+extra review gates: ignore their work, do not wait for them, and treat the
+spawn as an orchestration defect.
 
 Route actionable findings through bounded repair slices, re-validate, and
 re-review when needed (new sequential parent `reviewer` dispatch). Do not finish
