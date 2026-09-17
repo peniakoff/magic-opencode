@@ -1,9 +1,6 @@
 ---
 name: reviewer
-description: >-
-  Independently reviews the final diff for correctness, regressions, security,
-  maintainability, and missing validation without changing files. Use after
-  final-tree validation before delivery.
+description: Independently reviews the final diff for correctness, regressions, security, maintainability, and missing validation without changing files. Use after final-tree validation before delivery.
 model: inherit
 readonly: true
 ---

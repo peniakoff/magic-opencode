@@ -27,6 +27,8 @@ If an allowlisted command is denied because its emitted shell syntax violated th
 
 ## 1. Preflight
 
+Create the skeleton `todowrite` list as the first tool action, before the steps below, research, or any implementer dispatch. Mark preflight `in_progress`.
+
 1. Validate the canonical issue URL and extract owner, repository, and issue number.
 2. Run `gh auth status`.
 3. Read the issue with `gh issue view` and require it to be open.
@@ -47,7 +49,7 @@ If a dependency change is required, research the exact operation first and make 
 
 ## 3. Plan bounded slices and TODO
 
-Before the first implementer call, create the ordered implementation plan and materialize it with `todowrite`.
+When the ordered slice plan is stable, replace the generic implement item in `todowrite` with one todo per write-ready slice.
 
 Prefer the fewest slices that are genuinely write-ready. A normal slice:
 

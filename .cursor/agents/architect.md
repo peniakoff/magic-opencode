@@ -1,9 +1,6 @@
 ---
 name: architect
-description: >-
-  Designs implementation-ready solutions and bounded writer slices for
-  cross-cutting changes without editing files. Use for contracts, persistence,
-  security boundaries, infrastructure, or material compatibility decisions.
+description: Designs implementation-ready solutions and bounded writer slices for cross-cutting changes without editing files. Use for contracts, persistence, security boundaries, infrastructure, or material compatibility decisions.
 model: inherit
 readonly: true
 ---

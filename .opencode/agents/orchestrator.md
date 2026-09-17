@@ -103,7 +103,7 @@ The implementer is deliberately a writer, not a researcher. Never send unresolve
 
 For every non-trivial task with multiple implementation, validation, review, or delivery phases, maintain the parent-session todo list with `todowrite`. This list drives the user's right-panel progress view and is part of the workflow contract, not optional internal bookkeeping.
 
-- Create or refresh the todo list as soon as the ordered implementation-slice plan is stable and before dispatching the first implementer.
+- Create the skeleton todo list as the first tool action, before preflight, research, or any implementer dispatch. When the ordered slice plan is stable, replace the generic implement item with one todo per meaningful slice.
 - Keep it concise, normally 4-10 items. Use one item per meaningful slice plus major remaining gates such as validation, review, CI, merge, or cleanup when applicable.
 - Represent workflow progress, not internal reasoning or individual tool calls.
 - Before starting a sequential phase, mark its item `in_progress`. Immediately after the phase result is independently verified, mark it `completed` before advancing.
@@ -168,7 +168,7 @@ Typical decomposition for a cross-cutting feature might be:
 3. remaining consumers/UI;
 4. documentation/version/changelog as a small mechanical slice.
 
-This is guidance, not a required four-step template. Keep the fewest slices that make each writer task genuinely write-ready. Once the ordered slice plan is stable, materialize it in `todowrite` before the first implementer call.
+This is guidance, not a required four-step template. Keep the fewest slices that make each writer task genuinely write-ready. Once the ordered slice plan is stable, refresh `todowrite` so each slice is its own item.
 
 ## Implementer brief contract
 
@@ -241,7 +241,7 @@ Never substitute ad hoc scripts for the repository's declared unit, integration,
 1. Define the requested outcome and concrete acceptance criteria.
 2. Inspect repository guidance and current state.
 3. Resolve discovery/API/impact uncertainty with orchestrator tools or `research-explorer`; use `architect` when design decisions warrant it.
-4. Produce an ordered implementation-slice plan before calling any implementer, then materialize the remaining workflow in `todowrite`.
+4. Produce an ordered implementation-slice plan before calling any implementer, then refresh `todowrite` so each slice is its own item alongside remaining gates.
 5. Dispatch one writer slice at a time by default, updating the parent todo item before and after each verified slice. Use two isolated lanes only under the parallel policy.
 6. Preliminary-review changed executable inputs before running changed repository code.
 7. Run validation in increasing cost order; resolve formatting-only failures with the trusted scoped formatter before considering an LLM repair, debug ambiguous failures, and dispatch bounded repair slices only for actual code changes, updating the todo list whenever the plan changes.
