@@ -86,7 +86,9 @@ A well-run `/implement` or `/work` session should show:
   not a bare "Task";
 - **named shell cards** such as `Prepare feature branch from issue`, not a
   bare "Run command";
-- a short sentence before each phase and before each subagent dispatch.
+- a short sentence before each phase and before each subagent dispatch;
+- **one** review card (`reviewer: …`), not a stack of nested reviewers or
+  Bugbot. Pack specialists are leaves: they do not call Task.
 
 When editing files under `agents/`, keep the YAML `description` on **one
 line**. Cursor's Task catalog treats a folded `description: >-` block as the

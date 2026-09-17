@@ -232,7 +232,7 @@ Then rerun the repository's formatting check. Do not dispatch an implementer mer
 
 Use `test-debugger` only for ambiguous failures. Once a causal defect is established, add or replace a bounded repair item in the todo plan and dispatch it to `implementer` rather than asking the debugger to edit.
 
-Use `security-reviewer` for changes affecting authentication, authorization, tenants, payments, secrets, untrusted input, sensitive data, dependencies, or infrastructure trust boundaries. Use `browser-qa` for supplementary exploratory validation of changed user-facing web flows. Use `reviewer` for substantial or risky final diffs and route actionable findings back through bounded repair slices. Keep these major gates reflected in the todo list when they are part of the planned workflow.
+Use `security-reviewer` for changes affecting authentication, authorization, tenants, payments, secrets, untrusted input, sensitive data, dependencies, or infrastructure trust boundaries. Use `browser-qa` for supplementary exploratory validation of changed user-facing web flows. Use exactly one `reviewer` Task per review gate; include `github-delivery.sh inspect` output (changed paths plus the diff or a file+hunk list) in that brief and never tell the reviewer to run `git`. Dispatch `security-reviewer` in the same parent turn only when trust boundaries are in scope. Never `bugbot` or `explore`. Re-review is a new sequential parent dispatch after repair, not a nested child. Keep these major gates reflected in the todo list when they are part of the planned workflow.
 
 Never substitute ad hoc scripts for the repository's declared unit, integration, or E2E framework.
 

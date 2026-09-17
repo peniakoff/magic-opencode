@@ -37,6 +37,10 @@ Do not dump briefs, diffs, or raw tool output into chat.
 
 ### Named Task and Shell cards
 
+Only the **parent** `/implement` or `/work` session may call Task. Specialists
+are leaves: if one returns an incomplete answer, shrink/rebrief and dispatch
+**one** replacement yourself. Never tell a specialist to spawn help.
+
 Every Task call must set:
 
 - `subagent_type` to exactly one of: `research-explorer`, `architect`,
@@ -44,8 +48,12 @@ Every Task call must set:
 - `description` as `<agent>: <goal>` (3–6 words, unique in the session);
 - `model` to `inherit`.
 
-Never substitute `generalPurpose`, `explore`, or any other built-in type for a
-pack agent. Only `implementer` may edit repository files.
+Never `bugbot`. Never substitute `generalPurpose`, `explore`, or any other
+built-in type for a pack agent. Only `implementer` may edit repository files.
+
+At most one `reviewer` Task per review gate. A `security-reviewer` may run in
+the **same parent message** only when trust boundaries are in scope. Re-review
+is a new sequential parent dispatch after repair, not a nested child.
 
 Every bash wrapper call must include a 5–10 word `description` so the UI card
 is not a bare "Run command" (for example `Prepare feature branch from issue`).
@@ -167,12 +175,19 @@ Only after all planned implementation and metadata slices:
 
 ## Independent final review
 
-Call Task → `reviewer` with acceptance criteria, actual changed paths/diff, and
-exact validation results. Use `security-reviewer` for sensitive trust boundaries
-and `browser-qa` for exploratory user-flow checks when warranted.
+Call Task → `reviewer` once with acceptance criteria, exact validation results,
+and the `github-delivery.sh inspect` output (changed paths plus the diff or a
+file+hunk list). Do not tell the reviewer to run `git` or inspect itself.
+
+Use `security-reviewer` in the same parent message only for sensitive trust
+boundaries, and `browser-qa` for exploratory user-flow checks when warranted.
+Never `bugbot`. Write one sentence before dispatch and one after return. If the
+reviewer still spawned a child, ignore that child's work and treat it as an
+orchestration defect — do not wait for extra reviews.
 
 Route actionable findings through bounded repair slices, re-validate, and
-re-review when needed. Do not finish with unresolved actionable findings.
+re-review when needed (new sequential parent `reviewer` dispatch). Do not finish
+with unresolved actionable findings.
 
 Treat malformed/invalid input that succeeds when the contract requires
 rejection as a correctness defect. Standards/protocol compliance claims must
