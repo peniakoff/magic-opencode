@@ -40,7 +40,8 @@ preliminary review → validation → final review
 
 One implementer is the default. At most two implementer instances may run in
 parallel, and only when two write-ready slices are proven independent and use
-separate trusted worktrees.
+separate trusted worktrees. The orchestrator must load skill `parallel-lanes`
+before creating any worktree.
 
 Commands:
 
@@ -323,7 +324,8 @@ Git/GitHub mutations are routed through
 ## Reusing in another repository
 
 1. Copy `opencode.json`, `.opencode/agents/`, `.opencode/commands/`,
-   `.opencode/scripts/`, `.opencode/codebase-index.json`, and this README.
+   `.opencode/skills/`, `.opencode/scripts/`, `.opencode/codebase-index.json`,
+   and this README.
 2. Merge these ignore rules into the target `.gitignore`:
 
    ```gitignore
@@ -346,5 +348,7 @@ opencode mcp list
 ```
 
 Then run `/status` and `/index` when an embedding-capable provider is available.
-Configuration, agents, commands, plugins, and MCP servers are loaded at session
-startup, so start a new OpenCode session after changing the pack.
+Configuration, agents, commands, skills, plugins, and MCP servers are loaded at
+session startup, so start a new OpenCode session after changing the pack.
+Skills under `.opencode/skills/` are discovered then and loaded on demand via
+the `skill` tool.

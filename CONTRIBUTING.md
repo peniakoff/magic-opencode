@@ -25,6 +25,15 @@ semantics), update **both packs** in the same pull request unless the change is
 genuinely runtime-specific (for example OpenCode permission YAML vs Cursor
 skill frontmatter).
 
+Playbook **structure** may differ by runtime and is not drift by itself:
+
+- OpenCode: always-on `orchestrator` prompt plus on-demand `.opencode/skills/`
+- Cursor: `/implement` and `/work` skills with `references/` loaded by the
+  parent chat
+
+Keep contracts and wrapper semantics aligned even when the markdown layout
+differs.
+
 ## Language
 
 All versioned prompts, commands, skills, agent instructions, helper messages,
@@ -34,7 +43,8 @@ reliable model behavior.
 ## What to change where
 
 - **Agents** — role contracts, tool boundaries, output statuses
-- **Commands / skills** — orchestration steps users invoke (`/implement`, `/work`, …)
+- **Commands / skills** — orchestration steps users invoke (`/implement`,
+  `/work`, …) and OpenCode on-demand skills under `.opencode/skills/`
 - **Scripts** — trusted wrappers only; keep refuse-lists for destructive git/`gh` ops
 - **Root docs** — public landing (`README.md`) and community/legal files
 

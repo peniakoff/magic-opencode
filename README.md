@@ -71,7 +71,7 @@ flowchart TD
 
 ### OpenCode
 
-1. Copy `opencode.json`, `.opencode/agents/`, `.opencode/commands/`, `.opencode/scripts/`, `.opencode/codebase-index.json`, and `.opencode/README.md` into the target repo root.
+1. Copy `opencode.json`, `.opencode/agents/`, `.opencode/commands/`, `.opencode/skills/`, `.opencode/scripts/`, `.opencode/codebase-index.json`, and `.opencode/README.md` into the target repo root.
 2. Merge ignore rules:
 
    ```gitignore

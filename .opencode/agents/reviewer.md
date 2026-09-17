@@ -13,7 +13,9 @@ permission:
   grep: allow
   list: allow
   lsp: allow
-  skill: allow
+  skill:
+    "*": allow
+    parallel-lanes: deny
   bash: deny
 ---
 

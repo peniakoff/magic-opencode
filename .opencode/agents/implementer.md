@@ -13,7 +13,9 @@ permission:
   read: allow
   grep: allow
   lsp: allow
-  skill: allow
+  skill:
+    "*": allow
+    parallel-lanes: deny
   bash:
     "*": deny
     "bash .opencode/scripts/parallel-worktrees.sh inspect *": allow

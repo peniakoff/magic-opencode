@@ -14,7 +14,9 @@ permission:
   grep: allow
   list: allow
   lsp: allow
-  skill: allow
+  skill:
+    "*": allow
+    parallel-lanes: deny
   context7_*: allow
   webfetch: allow
   websearch: allow
