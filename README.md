@@ -14,8 +14,8 @@ Portable workflows for **[OpenCode](https://opencode.ai)** and **[Cursor](https:
 
 ```text
         ┌─────────────────────────────────────────┐
-        │           M A G I C   O P E N C O D E   │
-        │     orchestrate · research · implement  │
+        │       M A G I C   O P E N C O D E       │
+        │   orchestrate · research · implement    │
         └────────────────────┬────────────────────┘
                              │
          inspect / research  │  architecture
