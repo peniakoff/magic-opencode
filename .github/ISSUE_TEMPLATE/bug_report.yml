@@ -1,0 +1,58 @@
+name: Bug report
+description: Something broken in the packs, wrappers, or docs
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. For security issues, use [private vulnerability reporting](https://github.com/peniakoff/magic-opencode/security/advisories/new) instead.
+  - type: dropdown
+    id: pack
+    attributes:
+      label: Pack / surface
+      options:
+        - OpenCode (.opencode / opencode.json)
+        - Cursor (.cursor)
+        - Both / shared behavior
+        - Docs only
+        - GitHub Actions / repo meta
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Clear description of the bug
+      placeholder: Expected X, got Y…
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps, commands, or prompts
+      placeholder: |
+        1. Copy pack into …
+        2. Run /implement …
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Runtime versions and OS if relevant
+      placeholder: |
+        - OpenCode / Cursor version:
+        - OS:
+        - gh version:
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / evidence
+      description: Paste relevant output (redact secrets)
+    validations:
+      required: false

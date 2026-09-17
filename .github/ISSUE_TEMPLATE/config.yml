@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/peniakoff/magic-opencode/security/advisories/new
+    about: Please report security issues privately — see SECURITY.md
+  - name: OpenCode pack docs
+    url: https://github.com/peniakoff/magic-opencode/blob/main/.opencode/README.md
+    about: Operating model, MCP, delivery, and reuse for OpenCode
+  - name: Cursor pack docs
+    url: https://github.com/peniakoff/magic-opencode/blob/main/.cursor/README.md
+    about: Install and orchestration notes for Cursor

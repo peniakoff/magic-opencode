@@ -1,0 +1,41 @@
+name: Scripts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".opencode/scripts/**"
+      - ".cursor/scripts/**"
+      - ".github/workflows/scripts.yml"
+  pull_request:
+    paths:
+      - ".opencode/scripts/**"
+      - ".cursor/scripts/**"
+      - ".github/workflows/scripts.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: Shellcheck wrappers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Syntax check (bash -n)
+        run: |
+          set -euo pipefail
+          mapfile -t scripts < <(find .opencode/scripts .cursor/scripts -type f -name '*.sh' | sort)
+          printf 'Checking %s script(s)\n' "${#scripts[@]}"
+          bash -n "${scripts[@]}"
+
+      - name: Shellcheck
+        run: |
+          set -euo pipefail
+          mapfile -t scripts < <(find .opencode/scripts .cursor/scripts -type f -name '*.sh' | sort)
+          shellcheck -s bash "${scripts[@]}"
