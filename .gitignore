@@ -1,3 +1,5 @@
 .artifacts/
 .opencode/index/
 .opencode/worktrees/
+.cursor/worktrees/
+.cursor/index/
