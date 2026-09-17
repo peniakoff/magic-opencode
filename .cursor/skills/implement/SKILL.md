@@ -83,8 +83,8 @@ becomes relevant only after this workflow creates the PR.
 4. **Execute slices** — sequential default; inspect after each; cheap focused
    checks only between slices.
 5. **Validate final tree once** — full suite after all planned slices.
-6. **Independent review** — Task → `reviewer` (plus security/browser when
-   warranted); repair until clean.
+6. **Independent review** — parent-only Task; one `reviewer`; brief includes
+   inspect diff; plus security/browser when warranted; repair until clean.
 7. **Commit, PR, CI, merge** — [delivery.md](references/delivery.md) sequence.
 8. **Cleanup and report** — `cleanup`, finalize todos, report evidence.
 
