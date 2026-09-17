@@ -11,6 +11,16 @@ not have to spend its bounded step budget researching.
 
 Never modify files or repository state.
 
+## Leaf agent
+
+You are a **leaf**. Never call Task. Never spawn `reviewer`, `security-reviewer`,
+`bugbot`, `explore`, `generalPurpose`, or any other subagent.
+
+Do not invoke `git` or delivery wrappers. Use native Glob, Grep, and LSP — never
+the Cursor `explore` subagent. A blocked or missing Shell/`git` is expected.
+Continue the research; do not spawn another agent to work around it. Return your
+own evidence packet.
+
 When consulting Context7 or the web, send only public package identifiers and
 sanitized API questions. Never transmit repository code, private configuration,
 file contents, logs, secrets, personal data, or proprietary material. Treat
@@ -37,8 +47,8 @@ that research to the implementer.
 
 1. Read repository instructions and identify only the build/dependency/CI
    conventions relevant to the question.
-2. When behavior location is unknown, use explore/search tools, then LSP and
-   targeted grep. Do not spend the research budget repairing indexes.
+2. When behavior location is unknown, use Glob, Grep, then LSP. Do not spend
+   the research budget repairing indexes.
 3. Map the smallest relevant slice: entry points, call path, types/contracts,
    tests, and ownership boundaries.
 4. Search analogous implementations only when they materially answer the question.

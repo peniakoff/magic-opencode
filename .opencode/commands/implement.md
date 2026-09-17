@@ -117,7 +117,7 @@ Mark validation completed only for the current final tree. Any later repository 
 
 ## 6. Independent final review
 
-Run `github-delivery.sh inspect`, mark review `in_progress`, and call `reviewer` with acceptance criteria, actual changed paths/diff, and exact validation results.
+Run `github-delivery.sh inspect`, mark review `in_progress`, and call `reviewer` once with acceptance criteria, that inspect output (changed paths plus the diff or a file+hunk list), and exact validation results. Do not tell the reviewer to run `git`. Never `bugbot` or `explore`. Re-review after repair is a new sequential parent dispatch, not a nested child.
 
 The review must treat successful handling of malformed/invalid input as a correctness defect when the contract requires rejection, even if the resulting value coincidentally matches what corrected input would produce. It must also verify that standards/protocol compliance claims in docs or changelogs are no broader than the implementation.
 
