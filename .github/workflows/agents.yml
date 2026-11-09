@@ -1,0 +1,46 @@
+name: Agents
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".codex/agents/**"
+      - ".github/workflows/agents.yml"
+  pull_request:
+    paths:
+      - ".codex/agents/**"
+      - ".github/workflows/agents.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  codex-agents:
+    name: Validate Codex agent definitions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse TOML and check required keys
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys, tomllib
+
+          required = ("name", "description", "developer_instructions")
+          failed = False
+          files = sorted(pathlib.Path(".codex/agents").glob("*.toml"))
+          if not files:
+              sys.exit("no agent definitions found in .codex/agents")
+          for path in files:
+              data = tomllib.loads(path.read_text(encoding="utf-8"))
+              missing = [key for key in required if not data.get(key)]
+              if missing:
+                  print(f"{path}: missing {', '.join(missing)}")
+                  failed = True
+              elif data["name"] != path.stem:
+                  print(f"{path}: name {data['name']!r} does not match file name")
+                  failed = True
+          print(f"Checked {len(files)} agent file(s)")
+          sys.exit(1 if failed else 0)
+          PY

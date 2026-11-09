@@ -19,11 +19,14 @@ This repository maintains **two packs that share one operating model**:
 |------|------|
 | OpenCode | `.opencode/` (+ root `opencode.json`) |
 | Cursor | `.cursor/` |
+| Codex (experimental) | `.codex/agents/` |
 
 When you change **behavior** (roles, contracts, delivery rules, wrapper
 semantics), update **both packs** in the same pull request unless the change is
 genuinely runtime-specific (for example OpenCode permission YAML vs Cursor
 skill frontmatter).
+
+The Codex agent prompts mirror the Cursor leaf prompts. Change them together with `.cursor/agents/` and keep the `.cursor/scripts/` references valid.
 
 Playbook **structure** may differ by runtime and is not drift by itself:
 

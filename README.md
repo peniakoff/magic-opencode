@@ -2,7 +2,7 @@
 
 **Research-first multi-agent packs that implement GitHub issues end-to-end — without burning the writer’s step budget on discovery.**
 
-Portable workflows for **[OpenCode](https://opencode.ai)** and **[Cursor](https://cursor.com)**: one operating model, two installable packs.
+Portable workflows for **[OpenCode](https://opencode.ai)** and **[Cursor](https://cursor.com)**: one operating model, two installable packs. An experimental **Codex** agent set is included too.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0ea5e9.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/peniakoff/magic-opencode?style=flat&color=111827)](https://github.com/peniakoff/magic-opencode/stargazers)
@@ -48,6 +48,7 @@ MAGIC OpenCode **structures** the fix:
 |---------|-----------------|---------|
 | **OpenCode** | `opencode.json` + `.opencode/` | Agents, commands, scripts — [pack README](.opencode/README.md) |
 | **Cursor** | `.cursor/` only | Skills, agents, scripts — [pack README](.cursor/README.md) |
+| **Codex** (experimental) | `.codex/agents/` | Leaf agent definitions only (TOML). No orchestrating skill is shipped yet, so the parent session drives the flow; the prompts call the wrappers in `.cursor/scripts/`, so copy that directory too. |
 
 Copy **one** pack into another repository. They may coexist, but neither calls the other.
 
